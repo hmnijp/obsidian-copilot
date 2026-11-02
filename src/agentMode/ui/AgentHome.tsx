@@ -308,8 +308,8 @@ const AgentHomeInternal: React.FC<AgentHomeProps> = ({
   }, []);
 
   const persistCreateProject = useCallback(
-    async ({ name }: { name: string }) => {
-      await createProjectAndEnter(app, manager, name);
+    async ({ name, workspace }: { name: string; workspace?: string }) => {
+      await createProjectAndEnter(app, manager, name, workspace);
       setCreateAnchor(null);
     },
     [app, manager]
@@ -718,6 +718,7 @@ const AgentHomeInternal: React.FC<AgentHomeProps> = ({
           anchorEl={createAnchor}
           onClose={() => setCreateAnchor(null)}
           onSave={persistCreateProject}
+          app={app}
         />
       )}
       <div className="tw-min-h-0 tw-flex-1">

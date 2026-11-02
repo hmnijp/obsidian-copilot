@@ -1,5 +1,6 @@
 import { AgentProjectCreateForm } from "@/agentMode/ui/AgentProjectCreateForm";
 import { computeVerticalPlacement } from "@/utils/panelPlacement";
+import type { App } from "obsidian";
 import * as React from "react";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
@@ -7,7 +8,8 @@ import { createPortal } from "react-dom";
 interface CreateProjectPanelProps {
   anchorEl: HTMLElement;
   onClose: () => void;
-  onSave: (data: { name: string }) => Promise<void>;
+  onSave: (data: { name: string; workspace?: string }) => Promise<void>;
+  app?: App;
 }
 
 const MARGIN = 12;
@@ -24,6 +26,7 @@ export function CreateProjectPanel({
   anchorEl,
   onClose,
   onSave,
+  app,
 }: CreateProjectPanelProps): React.ReactPortal {
   const panelRef = useRef<HTMLDivElement>(null);
   const doc = anchorEl.ownerDocument;
@@ -92,6 +95,8 @@ export function CreateProjectPanel({
         subtitle="Create a new project in your vault"
         onSave={onSave}
         onCancel={onClose}
+        app={app}
+        pickWorkspace
       />
     </div>,
     doc.body
