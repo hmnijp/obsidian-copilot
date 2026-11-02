@@ -53,25 +53,50 @@ const EMPTY_MANIFEST_ENTRIES: ManifestPathEntry[] = Object.freeze(
 // https://github.com/logancyang/obsidian-copilot/issues/3801
 export const PROJECT_WORKSPACE_POLICY = `The working directory is this project's workspace. Write generated files, drafts and intermediates to outputs/ there (create it as needed), unless the user specifies another destination. Read/search there and in configured context sources, including external sources. Access other locations only when instructions or the user name them.`;
 
+export const FOREIGN_PROJECT_WORKSPACE_POLICY = `Read/search there and in configured context sources. Do not create folders or files on your own: write only when the user asks, and then only to the place they name.`;
+
+export interface ProjectContextOptions {
+  isProjectFolder?: boolean;
+  workspacePath?: string;
+}
+
+export function workspacePolicy(options: ProjectContextOptions): string {
+  if (options.isProjectFolder !== false) return PROJECT_WORKSPACE_POLICY;
+  const where = options.workspacePath
+    ? `The working directory is "${options.workspacePath}", outside this project's own folder. `
+    : "The working directory is outside this project's own folder. ";
+  return where + FOREIGN_PROJECT_WORKSPACE_POLICY;
+}
+
+const POLICY_PLACEHOLDER = "\u0000workspace-policy\u0000";
+
 const UNAVAILABLE_PROJECT_CONTEXT_BLOCK = [
   "<project_context>",
-  PROJECT_WORKSPACE_POLICY,
+  POLICY_PLACEHOLDER,
   "This project's context sources could not be loaded.",
   "</project_context>",
 ].join("\n");
 
 const EMPTY_PROJECT_CONTEXT_BLOCK = [
   "<project_context>",
-  PROJECT_WORKSPACE_POLICY,
+  POLICY_PLACEHOLDER,
   "No context sources are configured for this project.",
   "</project_context>",
 ].join("\n");
 
-export function buildProjectContext(app: App, projectId: string): string {
+function withPolicy(block: string, options: ProjectContextOptions): string {
+  return block.replace(POLICY_PLACEHOLDER, workspacePolicy(options));
+}
+
+export function buildProjectContext(
+  app: App,
+  projectId: string,
+  options: ProjectContextOptions = {}
+): string {
   const record = getCachedProjectRecordById(projectId);
-  if (!record) return UNAVAILABLE_PROJECT_CONTEXT_BLOCK;
+  if (!record) return withPolicy(UNAVAILABLE_PROJECT_CONTEXT_BLOCK, options);
   const contextSource = record.project.contextSource;
-  if (!contextSource) return EMPTY_PROJECT_CONTEXT_BLOCK;
+  if (!contextSource) return withPolicy(EMPTY_PROJECT_CONTEXT_BLOCK, options);
 
   const webUrls = splitLines(contextSource.webUrls);
   const youtubeUrls = splitLines(contextSource.youtubeUrls);
@@ -90,7 +115,7 @@ export function buildProjectContext(app: App, projectId: string): string {
     extensions.length > 0 ||
     tags.length > 0 ||
     properties.length > 0;
-  if (!hasAnySource) return EMPTY_PROJECT_CONTEXT_BLOCK;
+  if (!hasAnySource) return withPolicy(EMPTY_PROJECT_CONTEXT_BLOCK, options);
 
   const adapter = vaultAdapter(app);
   const noteEntries = resolveNotePaths(app, notes, adapter);
@@ -104,17 +129,20 @@ export function buildProjectContext(app: App, projectId: string): string {
     (entry) => !declaredNotePaths.has(manifestEntryKey(entry))
   );
 
-  return buildProjectContextBlock({
-    folders: resolveFolderPaths(app, folders, adapter),
-    notes: noteEntries,
-    extensions,
-    tags,
-    properties,
-    propertyNotes: propertyNoteEntries,
-    documents: documentEntries,
-    webUrls,
-    youtubeUrls,
-  });
+  return withPolicy(
+    buildProjectContextBlock({
+      folders: resolveFolderPaths(app, folders, adapter),
+      notes: noteEntries,
+      extensions,
+      tags,
+      properties,
+      propertyNotes: propertyNoteEntries,
+      documents: documentEntries,
+      webUrls,
+      youtubeUrls,
+    }),
+    options
+  );
 }
 
 export function buildProjectContextBlock(sources: ManifestSources): string {
@@ -141,7 +169,7 @@ export function buildProjectContextBlock(sources: ManifestSources): string {
 
   const out: string[] = [
     "<project_context>",
-    PROJECT_WORKSPACE_POLICY,
+    POLICY_PLACEHOLDER,
     "Context sources for this project.",
   ];
 
@@ -158,7 +186,7 @@ export function buildProjectContextBlock(sources: ManifestSources): string {
     out.push("", `> ${omitted} more sources are not listed; search the sources above for them.`);
   }
   out.push("</project_context>");
-  return out.join("\n");
+  return out.join("\n").replace(POLICY_PLACEHOLDER, PROJECT_WORKSPACE_POLICY);
 }
 
 function line(section: string, text: string): ManifestLine {

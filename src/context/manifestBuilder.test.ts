@@ -249,6 +249,28 @@ describe("manifestBuilder", () => {
       expect(noSources).toContain(PROJECT_WORKSPACE_POLICY);
       expect(unavailable).toContain(PROJECT_WORKSPACE_POLICY);
     });
+
+    it("drops the outputs/ policy when the workspace is another folder, so a foreign repo never gains one", () => {
+      getRecord.mockReturnValue(record({}));
+      const foreign = buildProjectContext(fakeApp(), "p1", {
+        isProjectFolder: false,
+        workspacePath: "/repo/home-server-docs",
+      });
+
+      expect(foreign).not.toContain("outputs/");
+      expect(foreign).toContain('"/repo/home-server-docs"');
+      expect(foreign).toContain("write only when the user asks");
+    });
+
+    it("keeps the outputs/ policy for a project that points its workspace at its own folder", () => {
+      getRecord.mockReturnValue(record({}));
+      const own = buildProjectContext(fakeApp(), "p1", {
+        isProjectFolder: true,
+        workspacePath: "/vault/copilot/projects/p1",
+      });
+
+      expect(own).toContain(PROJECT_WORKSPACE_POLICY);
+    });
   });
 
   describe("buildProjectContextBlock()", () => {

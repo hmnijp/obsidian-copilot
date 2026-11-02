@@ -15,7 +15,7 @@ import {
   subscribeToSettingsChange,
   type CopilotSettings,
 } from "@/settings/model";
-import { buildProjectContext } from "@/context/manifestBuilder";
+import { buildProjectContext, type ProjectContextOptions } from "@/context/manifestBuilder";
 import { err2String } from "@/utils";
 import type { ChatHistoryItem } from "@/components/chat-components/ChatHistoryPopover";
 import {
@@ -187,6 +187,7 @@ export class AgentSessionManager {
   private readonly landingCaptureSignatures = new Map<string, string>();
   private readonly contentTracker: ProjectContentTracker;
   private readonly lastSeenProjectContentEpochBySession = new Map<string, number>();
+  private readonly lastResolutionByProject = new Map<ProjectScopeId, ProjectCwdResolution>();
   private previousProjectRecords: ProjectFileRecord[] = [];
   private projectRecordsUnsubscriber?: () => void;
   private readonly firstSessionPromiseByScope = new Map<ProjectScopeId, Promise<AgentSession>>();
@@ -374,7 +375,16 @@ export class AgentSessionManager {
       internalId,
       this.contentTracker.getEpoch(projectId)
     );
-    return buildProjectContext(this.app, projectId);
+    return buildProjectContext(this.app, projectId, this.getProjectContextOptions(projectId));
+  }
+
+  private getProjectContextOptions(projectId: ProjectScopeId): ProjectContextOptions {
+    const last = this.lastResolutionByProject.get(projectId);
+    if (!last) return {};
+    return {
+      isProjectFolder: last.isProjectFolder,
+      workspacePath: last.isProjectFolder ? undefined : last.cwd,
+    };
   }
 
   private getProjectContextUpdates(
@@ -843,6 +853,7 @@ export class AgentSessionManager {
 
     const resolution = await this.resolveSessionCwd(projectId);
     const cwd = resolution.cwd;
+    this.lastResolutionByProject.set(projectId, resolution);
     if (resolution.fallbackReason) {
       this.notifyProjectCwdFallback(resolution.fallbackReason);
     }
@@ -2057,6 +2068,7 @@ export class AgentSessionManager {
     );
     const resolution = await this.resolveSessionCwd(projectId);
     const cwd = resolution.cwd;
+    this.lastResolutionByProject.set(projectId, resolution);
     if (resolution.fallbackReason) {
       this.notifyProjectCwdFallback(resolution.fallbackReason);
     }
