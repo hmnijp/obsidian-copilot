@@ -71,6 +71,7 @@ import { buildProjectContextUpdatesBlock } from "@/context/contextUpdatesBlockBu
 import { ensureAgentsFileForDiscovery } from "@/instructions/agentsFile";
 import { moveProjectPromptToAgentsFile } from "@/projects/moveProjectPrompt";
 import { getProjectAnchorFromConfigPath } from "@/projects/projectPaths";
+import { collectSessionFolders } from "@/projects/opencodeSessionFolders";
 import { ProjectFileManager } from "@/projects/ProjectFileManager";
 import type {
   AgentQuestionAnswers,
@@ -335,6 +336,20 @@ export class AgentSessionManager {
 
   isReadOnlyFanoutSession(backendSessionId: SessionId): boolean {
     return this.readOnlyFanoutSessions.has(backendSessionId);
+  }
+
+  async listOpencodeSessionFolders(backendId: BackendId): Promise<string[]> {
+    const proc = this.getRunningProcsByBackend().get(backendId);
+    if (!proc) return [];
+    try {
+      const { sessions } = await proc.listSessions({});
+      return collectSessionFolders(sessions);
+    } catch (e) {
+      if (!(e instanceof MethodUnsupportedError)) {
+        logWarn(`[AgentMode] listing ${backendId} session folders failed`, e);
+      }
+      return [];
+    }
   }
 
   runFanoutTurn(input: FanoutRunInput): Promise<FanoutTurn> {

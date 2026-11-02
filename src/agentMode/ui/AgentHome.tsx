@@ -719,6 +719,7 @@ const AgentHomeInternal: React.FC<AgentHomeProps> = ({
           onClose={() => setCreateAnchor(null)}
           onSave={persistCreateProject}
           app={app}
+          getSessionFolders={() => manager.listOpencodeSessionFolders("opencode")}
         />
       )}
       <div className="tw-min-h-0 tw-flex-1">
