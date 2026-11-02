@@ -5,6 +5,9 @@ import { PropertySearchModal } from "@/components/modals/PropertySearchModal";
 import { TagSearchModal } from "@/components/modals/TagSearchModal";
 import { getBadgeLabel } from "@/components/project/ProjectContextBadgeList";
 import { TruncatedText } from "@/components/TruncatedText";
+import { VaultFolderPickerModal } from "@/components/modals/project/VaultFolderPickerModal";
+import { readProjectWorkspacePath, writeProjectWorkspacePath } from "@/projects/projectWorkspace";
+import { getCachedProjectRecordById } from "@/projects/state";
 import { Button } from "@/components/ui/button";
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -1124,9 +1127,30 @@ function ContextManage({
     }
   };
 
+  const [workspacePath, setWorkspacePath] = useState<string>("");
+
+  useEffect(() => {
+    const record = getCachedProjectRecordById(initialProject.id);
+    if (!record) return;
+    void readProjectWorkspacePath(app, record.filePath).then(setWorkspacePath);
+  }, [app, initialProject.id]);
+
+  const persistWorkspace = async () => {
+    const record = getCachedProjectRecordById(initialProject.id);
+    if (!record) return;
+    await writeProjectWorkspacePath(app, record.filePath, workspacePath);
+  };
+
+  const handlePickWorkspace = () => {
+    new VaultFolderPickerModal(app, {
+      onPick: (folderPath) => setWorkspacePath(folderPath),
+    }).open();
+  };
+
   const handleSave = () => {
     const include = convertGroupListToInclusions(groupList);
     const exclude = convertDeletedItemsToExclusions(ignoreItems);
+    void persistWorkspace();
     onSave({
       ...initialProject,
       contextSource: {
@@ -1335,7 +1359,20 @@ function ContextManage({
           </div>
         </ResizablePanel>
       </ResizablePanelGroup>
-      <div className="tw-flex tw-justify-end tw-gap-2 tw-border-t tw-p-1">
+      <div className="tw-flex tw-items-center tw-justify-end tw-gap-2 tw-border-t tw-p-1">
+        <div className="tw-mr-auto tw-flex tw-min-w-0 tw-items-center tw-gap-2 tw-pl-2">
+          <span className="tw-truncate tw-text-sm tw-text-muted" title={workspacePath || "Default"}>
+            Workspace: {workspacePath || "Default (project folder)"}
+          </span>
+          <Button variant="ghost" onClick={handlePickWorkspace}>
+            Change
+          </Button>
+          {workspacePath && (
+            <Button variant="ghost" onClick={() => setWorkspacePath("")}>
+              Clear
+            </Button>
+          )}
+        </div>
         <Button variant="ghost" onClick={onCancel}>
           Cancel
         </Button>
