@@ -25,6 +25,7 @@ import {
 import {
   buildOpencodeConfig,
   type GeneratedOpencodeConfig,
+  OPENCODE_CANONICAL_MODE_AGENT_IDS,
   OpencodeBackend,
   type OpencodeModelDeps,
 } from "./OpencodeBackend";
@@ -887,6 +888,19 @@ describe("OpencodeBackend", () => {
     it("selects copilot-build as the default agent", async () => {
       const cfg = await buildOpencodeConfig(getSettings(), NO_MODELS_DEPS);
       expect(cfg.default_agent).toBe("copilot-build");
+    });
+
+    it("fork: maps the Plan mode to OpenCode's native plan agent without redefining it", () => {
+      expect(OPENCODE_CANONICAL_MODE_AGENT_IDS).toEqual({
+        default: "copilot-build",
+        auto: "build",
+        plan: "plan",
+      });
+    });
+
+    it("fork: leaves the native plan agent's config entry untouched", async () => {
+      const cfg = await buildOpencodeConfig(getSettings(), NO_MODELS_DEPS);
+      expect(cfg.agents.plan).toBeUndefined();
     });
 
     it("https://github.com/Brevilabs/obsidian-copilot-private/issues/559 denies OpenCode's native question tool for every agent", async () => {

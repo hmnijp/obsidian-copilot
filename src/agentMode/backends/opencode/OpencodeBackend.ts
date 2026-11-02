@@ -44,6 +44,7 @@ const OPENCODE_BUILTIN_BUILD_AGENT_ID = "build";
 export const OPENCODE_CANONICAL_MODE_AGENT_IDS: Partial<Record<CopilotMode, string>> = {
   default: OPENCODE_COPILOT_BUILD_AGENT_ID,
   auto: OPENCODE_BUILTIN_BUILD_AGENT_ID,
+  plan: "plan",
 };
 
 export interface OpencodeModelDeps {
