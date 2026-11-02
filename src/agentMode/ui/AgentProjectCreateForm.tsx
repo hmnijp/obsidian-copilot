@@ -16,6 +16,7 @@ interface AgentProjectCreateFormProps {
   onCancel: () => void;
   app?: App;
   pickWorkspace?: boolean;
+  getSessionFolders?: () => Promise<string[]>;
 }
 
 export function AgentProjectCreateForm({
@@ -25,6 +26,7 @@ export function AgentProjectCreateForm({
   onCancel,
   app,
   pickWorkspace = false,
+  getSessionFolders,
 }: AgentProjectCreateFormProps): React.ReactElement {
   const [name, setName] = useState("");
   const [isSaving, setIsSaving] = useState(false);
@@ -37,6 +39,7 @@ export function AgentProjectCreateForm({
     new VaultFolderPickerModal(app, {
       title: "Project workspace",
       onPick: (folderPath) => setWorkspace(folderPath || null),
+      getSessionFolders: getSessionFolders,
     }).open();
   };
 

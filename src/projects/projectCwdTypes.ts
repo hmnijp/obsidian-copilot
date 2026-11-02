@@ -6,6 +6,7 @@ export interface FolderPickerItem {
   path: string;
   label: string;
   isDefault?: boolean;
+  section?: string;
 }
 
 export const DEFAULT_FOLDER_ITEM: FolderPickerItem = {

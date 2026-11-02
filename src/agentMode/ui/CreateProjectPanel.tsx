@@ -10,6 +10,7 @@ interface CreateProjectPanelProps {
   onClose: () => void;
   onSave: (data: { name: string; workspace?: string }) => Promise<void>;
   app?: App;
+  getSessionFolders?: () => Promise<string[]>;
 }
 
 const MARGIN = 12;
@@ -27,6 +28,7 @@ export function CreateProjectPanel({
   onClose,
   onSave,
   app,
+  getSessionFolders,
 }: CreateProjectPanelProps): React.ReactPortal {
   const panelRef = useRef<HTMLDivElement>(null);
   const doc = anchorEl.ownerDocument;
@@ -97,6 +99,7 @@ export function CreateProjectPanel({
         onCancel={onClose}
         app={app}
         pickWorkspace
+        getSessionFolders={getSessionFolders}
       />
     </div>,
     doc.body
