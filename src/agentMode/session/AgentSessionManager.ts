@@ -53,8 +53,9 @@ import {
   OrphanedProjectError,
   pickScopeNeighbor,
   resolveProjectIdForCwd,
-  resolveScopeCwd,
+  resolveSessionScopeCwd,
 } from "./sessionScope";
+import type { ProjectCwdFallbackReason, ProjectCwdResolution } from "./projectCwd";
 import {
   getCachedProjectRecordById,
   getCachedProjectRecords,
@@ -880,7 +881,12 @@ export class AgentSessionManager {
       ? getProjectLandingCaptureSignature(this.app, projectRecord)
       : undefined;
 
-    const cwd = this.resolveSessionCwd(projectId);
+    const resolution = await this.resolveSessionCwd(projectId);
+    const cwd = resolution.cwd;
+
+    if (resolution.fallbackReason) {
+      this.notifyProjectCwdFallback(resolution.fallbackReason);
+    }
 
     this.pendingCreates++;
     this.startingBackendId = resolvedId;
@@ -1011,12 +1017,24 @@ export class AgentSessionManager {
     return descriptor;
   }
 
-  private resolveSessionCwd(projectId: ProjectScopeId): string {
+  private async resolveSessionCwd(projectId: ProjectScopeId): Promise<ProjectCwdResolution> {
     const adapter = this.app.vault.adapter;
     if (!(adapter instanceof FileSystemAdapter)) {
       throw new Error("Agent Chat requires Obsidian on desktop.");
     }
-    return resolveScopeCwd(adapter.getBasePath(), projectId);
+    const vaultBasePath = adapter.getBasePath();
+    const resolved = await resolveSessionScopeCwd(this.app, vaultBasePath, projectId);
+    if (!resolved) return { cwd: vaultBasePath, isProjectFolder: false };
+    return resolved;
+  }
+
+  private notifyProjectCwdFallback(reason: ProjectCwdFallbackReason): void {
+    const messages: Record<ProjectCwdFallbackReason, string> = {
+      "outside-vault": "Project workspace is outside the vault; using the project folder.",
+      missing: "Project workspace not found; using the project folder.",
+      "not-a-directory": "Project workspace is not a folder; using the project folder.",
+    };
+    new Notice(messages[reason]);
   }
 
   getActiveProjectId(): ProjectScopeId {
@@ -2148,7 +2166,7 @@ export class AgentSessionManager {
       projectId,
       projectId === GLOBAL_SCOPE ? undefined : getCachedProjectRecordById(projectId)
     );
-    const cwd = this.resolveSessionCwd(projectId);
+    const cwd = (await this.resolveSessionCwd(projectId)).cwd;
     const descriptor = this.resolveDescriptor(backendId);
 
     this.pendingCreates++;
