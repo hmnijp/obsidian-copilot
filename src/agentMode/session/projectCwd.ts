@@ -1,3 +1,5 @@
+import type { ProjectCwdFallbackReason } from "@/projects/projectCwdTypes";
+
 export const COPILOT_PROJECT_CWD = "copilot-project-cwd";
 
 export interface ProjectCwdResolveInput {
@@ -6,7 +8,7 @@ export interface ProjectCwdResolveInput {
   rawValue: string;
 }
 
-export type ProjectCwdFallbackReason = "outside-vault" | "missing" | "not-a-directory";
+export type { ProjectCwdFallbackReason };
 
 export interface ProjectCwdResolution {
   cwd: string;
