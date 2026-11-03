@@ -67,6 +67,11 @@ jest.mock("@/context/manifestBuilder", () => ({
   buildProjectContext: jest.fn(() => "<project_context>\n</project_context>"),
 }));
 
+const mockFetchOpencodeSessions = jest.fn(async () => []);
+jest.mock("@/projects/opencodeSessionsSource", () => ({
+  fetchOpencodeSessions: () => mockFetchOpencodeSessions(),
+}));
+
 let mockNotificationSound = true;
 
 jest.mock("@/utils/notificationSound", () => ({

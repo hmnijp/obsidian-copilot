@@ -74,6 +74,10 @@ import { moveProjectPromptToAgentsFile } from "@/projects/moveProjectPrompt";
 import { getProjectAnchorFromConfigPath } from "@/projects/projectPaths";
 import { collectSessionFolders } from "@/projects/opencodeSessionFolders";
 import { fetchOpencodeProjectFolders } from "@/projects/opencodeProjectFolders";
+import {
+  fetchOpencodeSessions,
+  type OpencodeSessionSummary,
+} from "@/projects/opencodeSessionsSource";
 import { ProjectFileManager } from "@/projects/ProjectFileManager";
 import type {
   AgentQuestionAnswers,
@@ -95,6 +99,7 @@ import type {
 const AUTOSAVE_DEBOUNCE_MS = 500;
 const LIST_SESSIONS_TIMEOUT_MS = 1_500;
 const OPENCODE_FOLDERS_CACHE_MS = 30_000;
+const OPENCODE_SESSIONS_CACHE_MS = 10_000;
 
 function withTimeout<T>(promise: Promise<T>, ms: number, fallback: T): Promise<T> {
   return new Promise<T>((resolve) => {
@@ -193,6 +198,7 @@ export class AgentSessionManager {
   private readonly lastSeenProjectContentEpochBySession = new Map<string, number>();
   private readonly lastResolutionByProject = new Map<ProjectScopeId, ProjectCwdResolution>();
   private opencodeFoldersCache: { at: number; folders: string[] } | null = null;
+  private opencodeSessionsCache: { at: number; sessions: OpencodeSessionSummary[] } | null = null;
   private previousProjectRecords: ProjectFileRecord[] = [];
   private projectRecordsUnsubscriber?: () => void;
   private readonly firstSessionPromiseByScope = new Map<ProjectScopeId, Promise<AgentSession>>();
@@ -821,6 +827,7 @@ export class AgentSessionManager {
     const probeSessionId = descriptor.getProbeSessionId?.(getSettings());
     const now = Date.now();
     const discovered = [];
+    const seen = new Set<string>();
     for (const s of sessions) {
       const inVaultRoot = isSameCwd(s.cwd, vaultBasePath);
       const projectId = inVaultRoot
@@ -834,6 +841,7 @@ export class AgentSessionManager {
       if (!title || title.startsWith(DEFAULT_TITLE_PREFIX)) continue;
       const updatedAtMs = s.updatedAt ? Date.parse(s.updatedAt) : NaN;
       const timestamp = Number.isFinite(updatedAtMs) && updatedAtMs > 0 ? updatedAtMs : now;
+      seen.add(s.sessionId);
       discovered.push({
         backendId,
         sessionId: s.sessionId,
@@ -843,7 +851,38 @@ export class AgentSessionManager {
         projectId,
       });
     }
+
+    for (const s of await this.listWorkspaceSessions(backendId)) {
+      if (probeSessionId && s.sessionId === probeSessionId) continue;
+      if (this.readOnlyFanoutSessions.has(s.sessionId)) continue;
+      if (seen.has(s.sessionId)) continue;
+      if (!s.title || s.title.startsWith(DEFAULT_TITLE_PREFIX)) continue;
+      const projectId = await resolveProjectIdForWorkspaceCwd(this.app, vaultBasePath, s.cwd);
+      if (!projectId) continue;
+      seen.add(s.sessionId);
+      const timestamp = s.updatedAtMs > 0 ? s.updatedAtMs : now;
+      discovered.push({
+        backendId,
+        sessionId: s.sessionId,
+        title: s.title,
+        createdAtMs: timestamp,
+        lastAccessedAtMs: timestamp,
+        projectId,
+      });
+    }
+
     if (discovered.length > 0) await index.mergeDiscoveredSessions(discovered);
+  }
+
+  private async listWorkspaceSessions(backendId: BackendId): Promise<OpencodeSessionSummary[]> {
+    const binaryPath = getSettings().agentMode?.backends?.opencode?.binaryPath;
+    if (!binaryPath) return [];
+    const cached = this.opencodeSessionsCache;
+    if (cached && Date.now() - cached.at < OPENCODE_SESSIONS_CACHE_MS) return cached.sessions;
+    const sessions = await fetchOpencodeSessions({ binaryPath });
+    this.opencodeSessionsCache = { at: Date.now(), sessions };
+    void backendId;
+    return sessions;
   }
 
   async getOrCreateActiveSession(): Promise<AgentSession> {
