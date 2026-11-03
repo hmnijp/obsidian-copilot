@@ -46,3 +46,16 @@ export async function writeProjectWorkspacePath(
     [COPILOT_PROJECT_CWD]: value || null,
   });
 }
+
+export type SessionFoldersProvider = () => Promise<string[]>;
+
+let sessionFoldersProvider: SessionFoldersProvider | null = null;
+
+export function setSessionFoldersProvider(provider: SessionFoldersProvider | null): void {
+  sessionFoldersProvider = provider;
+}
+
+export function getSessionFoldersFromProvider(): Promise<string[]> {
+  if (!sessionFoldersProvider) return Promise.resolve([]);
+  return sessionFoldersProvider().catch(() => []);
+}

@@ -10,11 +10,14 @@ export {
 
 export {
   getExcludedTopLevelFolders,
+  getSessionFoldersFromProvider,
   isVaultFolderSelectable,
   listSelectableVaultFolders,
   readProjectWorkspacePath,
+  setSessionFoldersProvider,
   vaultConfigDir,
   writeProjectWorkspacePath,
+  type SessionFoldersProvider,
 } from "@/projects/projectWorkspaceLib";
 
 export function fuzzySearchFolders(
