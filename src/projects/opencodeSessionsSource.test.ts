@@ -51,4 +51,54 @@ describe("fetchOpencodeSessions", () => {
       fetchOpencodeSessions({ binaryPath: "/bin/opencode", runCommand: async () => "no json here" })
     ).resolves.toEqual([]);
   });
+
+  it("walks the cursor through the query string until it runs out", async () => {
+    const calls: string[][] = [];
+    const runCommand = jest.fn(async (args: string[]) => {
+      calls.push(args);
+      if (calls.length === 1) {
+        return '{"data":[{"id":"s1","title":"A","location":{"directory":"C:\\\\a"},"time":{"updated":2}}],"cursor":{"next":"CUR2"}}';
+      }
+      return '{"data":[{"id":"s2","title":"B","location":{"directory":"C:\\\\b"},"time":{"updated":1}},{"id":"s1","title":"A","location":{"directory":"C:\\\\a"},"time":{"updated":2}}],"cursor":{"next":null}}';
+    });
+
+    const result = await fetchOpencodeSessions({ binaryPath: "/bin/opencode", runCommand });
+
+    expect(calls).toHaveLength(2);
+    expect(calls[0][2]).toBe("/api/session");
+    expect(calls[1][2]).toBe("/api/session?cursor=CUR2");
+    expect(result.map((s) => s.sessionId)).toEqual(["s1", "s2"]);
+  });
+
+  it("stops at maxPages even when the cursor keeps coming back", async () => {
+    let n = 0;
+    const runCommand = jest.fn(
+      async () =>
+        `{"data":[{"id":"s${n}","title":"T","location":{"directory":"C:\\\\d"},"time":{"updated":${n++}}}],"cursor":{"next":"CUR${n}"}}`
+    );
+
+    const result = await fetchOpencodeSessions({
+      binaryPath: "/bin/opencode",
+      maxPages: 3,
+      runCommand,
+    });
+
+    expect(result).toHaveLength(3);
+    expect(runCommand).toHaveBeenCalledTimes(3);
+  });
+
+  it("keeps the sessions it already read when a later page fails", async () => {
+    let n = 0;
+    const runCommand = jest.fn(async () => {
+      n++;
+      if (n === 1) {
+        return '{"data":[{"id":"s1","title":"A","location":{"directory":"C:\\\\a"},"time":{"updated":1}}],"cursor":{"next":"CUR2"}}';
+      }
+      throw new Error("boom");
+    });
+
+    await expect(
+      fetchOpencodeSessions({ binaryPath: "/bin/opencode", runCommand })
+    ).resolves.toEqual([{ sessionId: "s1", cwd: "C:\\a", title: "A", updatedAtMs: 1 }]);
+  });
 });

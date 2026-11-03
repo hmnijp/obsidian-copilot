@@ -15,14 +15,24 @@ interface SessionPayload {
   time?: { updated?: number };
 }
 
-function parseSessions(raw: string): SessionPayload[] | null {
+function parsePayload(raw: string): {
+  data: SessionPayload[] | null;
+  next: string | null;
+} {
   const start = raw.indexOf('{"data"');
-  if (start < 0) return null;
+  if (start < 0) return { data: null, next: null };
   try {
-    const parsed = JSON.parse(raw.slice(start)) as { data?: SessionPayload[] };
-    return Array.isArray(parsed.data) ? parsed.data : null;
+    const parsed = JSON.parse(raw.slice(start)) as {
+      data?: SessionPayload[];
+      cursor?: { next?: string | null };
+    };
+    const next = parsed.cursor?.next;
+    return {
+      data: Array.isArray(parsed.data) ? parsed.data : null,
+      next: typeof next === "string" && next ? next : null,
+    };
   } catch {
-    return null;
+    return { data: null, next: null };
   }
 }
 
@@ -43,22 +53,38 @@ export function collectSessions(payload: SessionPayload[] | null): OpencodeSessi
 export interface FetchSessionsOptions {
   binaryPath: string;
   timeoutMs?: number;
+  maxPages?: number;
   runCommand?: (args: string[]) => Promise<string>;
 }
 
 const DEFAULT_TIMEOUT_MS = 15_000;
+const DEFAULT_MAX_PAGES = 20;
 
 export async function fetchOpencodeSessions(
   options: FetchSessionsOptions
 ): Promise<OpencodeSessionSummary[]> {
   const timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
+  const maxPages = options.maxPages ?? DEFAULT_MAX_PAGES;
   const run = options.runCommand ?? defaultRunner(options.binaryPath, timeoutMs);
-  try {
-    return collectSessions(parseSessions(await run(["api", "GET", "/api/session"])));
-  } catch (e) {
-    logWarn("[AgentMode] opencode session listing failed", e);
-    return [];
+
+  const byId = new Map<string, OpencodeSessionSummary>();
+  let cursor: string | null = null;
+  for (let page = 0; page < maxPages; page++) {
+    const path = cursor ? `/api/session?cursor=${encodeURIComponent(cursor)}` : "/api/session";
+    let raw: string;
+    try {
+      raw = await run(["api", "GET", path]);
+    } catch (e) {
+      logWarn("[AgentMode] opencode session listing failed", e);
+      break;
+    }
+    const { data, next } = parsePayload(raw);
+    if (!data) break;
+    for (const session of collectSessions(data)) byId.set(session.sessionId, session);
+    if (!next || next === cursor) break;
+    cursor = next;
   }
+  return [...byId.values()];
 }
 
 function defaultRunner(binaryPath: string, timeoutMs: number) {

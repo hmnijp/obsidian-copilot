@@ -107,6 +107,7 @@ describe("AgentTabStrip", () => {
       };
       const manager = {
         subscribe: () => () => {},
+        getSessionsForAllScopes: () => [session],
         getSessionsForScope: () => [session],
         getActiveProjectId: () => null,
         getActiveSession: () => session,
@@ -140,6 +141,7 @@ describe("AgentTabStrip", () => {
       let finishCreation!: () => void;
       const manager = {
         subscribe: () => () => {},
+        getSessionsForAllScopes: () => [session],
         getSessionsForScope: () => [session],
         getActiveProjectId: () => null,
         getActiveSession: () => session,

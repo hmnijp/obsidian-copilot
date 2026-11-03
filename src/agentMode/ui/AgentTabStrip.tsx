@@ -10,6 +10,8 @@ import {
 import { Input } from "@/components/ui/input";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { refreshLatestVersion } from "@/hooks/useLatestVersion";
+import { getCachedProjectRecordById } from "@/projects/state";
+import { GLOBAL_SCOPE } from "@/agentMode/session/scope";
 import { cn } from "@/lib/utils";
 import { logError } from "@/logger";
 import type { AgentSession, AgentSessionStatus } from "@/agentMode/session/AgentSession";
@@ -102,7 +104,7 @@ export const AgentTabStrip: React.FC<Props> = ({ manager }) => {
   const [, setTick] = React.useState(0);
   React.useEffect(() => manager.subscribe(() => setTick((v) => v + 1)), [manager]);
 
-  const sessions = manager.getSessionsForScope(manager.getActiveProjectId());
+  const sessions = manager.getSessionsForAllScopes();
   const sessionCount = sessions.length;
   const activeId = manager.getActiveSession()?.internalId ?? null;
   const isCreating = manager.getIsStarting();
@@ -217,6 +219,23 @@ interface TabProps {
   onCancelRename: () => void;
 }
 
+function useProjectMarker(projectId: string): { color: string; name: string } | null {
+  return React.useMemo(() => {
+    if (!projectId || projectId === GLOBAL_SCOPE) return null;
+    const record = getCachedProjectRecordById(projectId);
+    const name = record?.project.name?.trim() || "Project";
+    return { color: projectColorFor(name), name };
+  }, [projectId]);
+}
+
+const PROJECT_COLORS = ["#e5654b", "#5b9bd5", "#5fbf7f", "#c47fd0", "#e0a040", "#4bb5b5"];
+
+function projectColorFor(name: string): string {
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) hash = (hash * 31 + name.charCodeAt(i)) >>> 0;
+  return PROJECT_COLORS[hash % PROJECT_COLORS.length];
+}
+
 const SessionTab: React.FC<TabProps> = ({
   session,
   isActive,
@@ -228,6 +247,7 @@ const SessionTab: React.FC<TabProps> = ({
   onCancelRename,
 }) => {
   const { status, label, needsAttention, descriptor, displayLabel } = useSessionDisplay(session);
+  const projectMarker = useProjectMarker(session.projectId);
 
   const [menuOpen, setMenuOpen] = React.useState(false);
 
@@ -271,7 +291,15 @@ const SessionTab: React.FC<TabProps> = ({
               ? "tw-border-interactive-accent tw-text-normal tw-bg-interactive-accent/10"
               : "tw-border-transparent tw-text-faint hover:tw-bg-modifier-hover hover:tw-text-normal"
           )}
+          title={projectMarker?.name}
         >
+          {projectMarker && (
+            <span
+              aria-hidden="true"
+              className="tw-size-1.5 tw-shrink-0 tw-rounded-full"
+              style={{ backgroundColor: projectMarker.color }}
+            />
+          )}
           <BrandIcon
             descriptor={descriptor}
             status={status}
