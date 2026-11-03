@@ -72,6 +72,7 @@ import { ensureAgentsFileForDiscovery } from "@/instructions/agentsFile";
 import { moveProjectPromptToAgentsFile } from "@/projects/moveProjectPrompt";
 import { getProjectAnchorFromConfigPath } from "@/projects/projectPaths";
 import { collectSessionFolders } from "@/projects/opencodeSessionFolders";
+import { fetchOpencodeProjectFolders } from "@/projects/opencodeProjectFolders";
 import { ProjectFileManager } from "@/projects/ProjectFileManager";
 import type {
   AgentQuestionAnswers,
@@ -92,6 +93,7 @@ import type {
 
 const AUTOSAVE_DEBOUNCE_MS = 500;
 const LIST_SESSIONS_TIMEOUT_MS = 1_500;
+const OPENCODE_FOLDERS_CACHE_MS = 30_000;
 
 function withTimeout<T>(promise: Promise<T>, ms: number, fallback: T): Promise<T> {
   return new Promise<T>((resolve) => {
@@ -201,6 +203,7 @@ export class AgentSessionManager {
   private readonly contentTracker: ProjectContentTracker;
   private readonly lastSeenProjectContentEpochBySession = new Map<string, number>();
   private readonly lastResolutionByProject = new Map<ProjectScopeId, ProjectCwdResolution>();
+  private opencodeFoldersCache: { at: number; folders: string[] } | null = null;
   private previousProjectRecords: ProjectFileRecord[] = [];
   private projectRecordsUnsubscriber?: () => void;
   private readonly firstSessionPromiseByScope = new Map<ProjectScopeId, Promise<AgentSession>>();
@@ -339,11 +342,35 @@ export class AgentSessionManager {
   }
 
   async listOpencodeSessionFolders(backendId: BackendId): Promise<string[]> {
+    const cached = this.opencodeFoldersCache;
+    if (cached && Date.now() - cached.at < OPENCODE_FOLDERS_CACHE_MS) return cached.folders;
+
+    const [projects, sessionFolders] = await Promise.all([
+      this.listOpencodeProjectFolders(),
+      this.listOpencodeSessionScopes(backendId),
+    ]);
+
+    const folders = collectSessionFolders([
+      ...projects.map((cwd) => ({ cwd })),
+      ...sessionFolders.map((cwd) => ({ cwd })),
+    ]);
+    this.opencodeFoldersCache = { at: Date.now(), folders };
+    return folders;
+  }
+
+  private async listOpencodeProjectFolders(): Promise<string[]> {
+    const binaryPath = getSettings().agentMode?.backends?.opencode?.binaryPath;
+    if (!binaryPath) return [];
+    const entries = await fetchOpencodeProjectFolders({ binaryPath });
+    return entries.map((entry) => entry.path);
+  }
+
+  private async listOpencodeSessionScopes(backendId: BackendId): Promise<string[]> {
     const proc = this.getRunningProcsByBackend().get(backendId);
     if (!proc) return [];
     try {
       const { sessions } = await proc.listSessions({});
-      return collectSessionFolders(sessions);
+      return sessions.map((session) => session.cwd).filter(Boolean);
     } catch (e) {
       if (!(e instanceof MethodUnsupportedError)) {
         logWarn(`[AgentMode] listing ${backendId} session folders failed`, e);

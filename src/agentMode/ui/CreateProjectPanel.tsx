@@ -15,8 +15,8 @@ interface CreateProjectPanelProps {
 
 const MARGIN = 12;
 const GAP = 6;
-const PANEL_WIDTH = 260;
-const ESTIMATED_HEIGHT = 140;
+const PANEL_WIDTH = 380;
+const ESTIMATED_HEIGHT = 200;
 
 interface PanelPosition {
   top: number;
@@ -89,7 +89,7 @@ export function CreateProjectPanel({
       ref={panelRef}
       role="dialog"
       aria-label="New project"
-      className="tw-fixed tw-z-popover tw-w-[260px] tw-rounded-md tw-border tw-border-solid tw-border-border tw-bg-primary tw-p-3 tw-shadow-lg"
+      className="tw-fixed tw-z-popover tw-w-[380px] tw-rounded-md tw-border tw-border-solid tw-border-border tw-bg-primary tw-p-3 tw-shadow-lg"
       style={{ top: position.top, left: position.left }}
     >
       <AgentProjectCreateForm
