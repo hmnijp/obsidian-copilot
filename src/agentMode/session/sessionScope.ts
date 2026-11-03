@@ -2,7 +2,13 @@ import { getCachedProjectRecordById, getCachedProjectRecords } from "@/projects/
 import { GLOBAL_SCOPE, type ProjectScopeId } from "@/agentMode/session/scope";
 import { requireNodeModule } from "@/utils/desktopRuntime";
 import { readFrontmatterViaAdapter } from "@/utils/vaultAdapterUtils";
-import { resolveProjectCwd, COPILOT_PROJECT_CWD, type ProjectCwdResolution } from "./projectCwd";
+import { readProjectWorkspacePath } from "@/projects/projectWorkspace";
+import {
+  resolveProjectCwd,
+  COPILOT_PROJECT_CWD,
+  isAbsoluteProjectCwd,
+  type ProjectCwdResolution,
+} from "./projectCwd";
 import { logWarn } from "@/logger";
 import type { App } from "obsidian";
 
@@ -56,13 +62,45 @@ async function readProjectCwdFrontmatter(
 
 export function resolveProjectIdForCwd(vaultBasePath: string, cwd: string): string | undefined {
   const path = requireNodeModule<typeof import("node:path")>("path");
-  const norm = (p: string) => p.replace(/[/\\]+$/, "");
+  const norm = (p: string) =>
+    p
+      .replace(/[/\\]+$/, "")
+      .replace(/\\/g, "/")
+      .toLowerCase();
   const target = norm(cwd);
   if (target === norm(vaultBasePath)) return undefined;
   for (const record of getCachedProjectRecords()) {
-    if (target === norm(path.join(vaultBasePath, path.dirname(record.filePath)))) {
-      return record.project.id;
+    const projectFolder = norm(path.join(vaultBasePath, path.dirname(record.filePath)));
+    if (target === projectFolder) return record.project.id;
+  }
+  return undefined;
+}
+
+export async function resolveProjectIdForWorkspaceCwd(
+  app: App,
+  vaultBasePath: string,
+  cwd: string
+): Promise<string | undefined> {
+  const path = requireNodeModule<typeof import("node:path")>("path");
+  const norm = (p: string) =>
+    p
+      .replace(/[/\\]+$/, "")
+      .replace(/\\/g, "/")
+      .toLowerCase();
+  const target = norm(cwd);
+  if (!target || target === norm(vaultBasePath)) return undefined;
+
+  for (const record of getCachedProjectRecords()) {
+    let raw = "";
+    try {
+      raw = await readProjectWorkspacePath(app, record.filePath);
+    } catch {
+      raw = "";
     }
+    if (!raw) continue;
+    const absolute = isAbsoluteProjectCwd(raw) ? raw : path.join(vaultBasePath, raw);
+    const normalized = path.normalize(absolute);
+    if (norm(normalized) === target) return record.project.id;
   }
   return undefined;
 }

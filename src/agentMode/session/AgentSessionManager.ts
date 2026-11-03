@@ -53,6 +53,7 @@ import {
   OrphanedProjectError,
   pickScopeNeighbor,
   resolveProjectIdForCwd,
+  resolveProjectIdForWorkspaceCwd,
   resolveSessionScopeCwd,
 } from "./sessionScope";
 import type { ProjectCwdFallbackReason, ProjectCwdResolution } from "./projectCwd";
@@ -822,7 +823,10 @@ export class AgentSessionManager {
     const discovered = [];
     for (const s of sessions) {
       const inVaultRoot = isSameCwd(s.cwd, vaultBasePath);
-      const projectId = inVaultRoot ? undefined : resolveProjectIdForCwd(vaultBasePath, s.cwd);
+      const projectId = inVaultRoot
+        ? undefined
+        : (resolveProjectIdForCwd(vaultBasePath, s.cwd) ??
+          (await resolveProjectIdForWorkspaceCwd(this.app, vaultBasePath, s.cwd)));
       if (!inVaultRoot && !projectId) continue;
       if (probeSessionId && s.sessionId === probeSessionId) continue;
       if (this.readOnlyFanoutSessions.has(s.sessionId)) continue;
