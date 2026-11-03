@@ -17,6 +17,9 @@ import { logError } from "@/logger";
 import { ProjectInstructionsField } from "@/instructions/ProjectInstructionsField";
 import { getProjectAnchorFromConfigPath } from "@/projects/projectPaths";
 import { getCachedProjectRecordById } from "@/projects/state";
+import { readProjectWorkspacePath, writeProjectWorkspacePath } from "@/projects/projectWorkspace";
+import { VaultFolderPickerModal } from "@/components/modals/project/VaultFolderPickerModal";
+import { requireNodeModule } from "@/utils/desktopRuntime";
 import { err2String } from "@/utils";
 import { createPluginRoot } from "@/utils/react/createPluginRoot";
 import { App, Modal, Notice } from "obsidian";
@@ -29,6 +32,15 @@ export interface AddProjectModalContentProps {
   onSave: (project: ProjectConfig) => Promise<void>;
   onCancel: () => void;
   popoverContainer?: HTMLElement | null;
+}
+
+function isExistingDirectory(candidate: string): boolean {
+  try {
+    const fs = requireNodeModule<typeof import("node:fs")>("fs");
+    return fs.statSync(candidate).isDirectory();
+  } catch {
+    return false;
+  }
 }
 
 export function AddProjectModalContent({
@@ -53,6 +65,17 @@ export function AddProjectModalContent({
   );
   const [instructions, setInstructions] = useState<string | null>(null);
   const [draftOwnsLegacyPrompt, setDraftOwnsLegacyPrompt] = useState(false);
+  const [workspacePath, setWorkspacePath] = useState("");
+  useEffect(() => {
+    if (!record) return;
+    let cancelled = false;
+    void readProjectWorkspacePath(app, record.filePath).then((value) => {
+      if (!cancelled) setWorkspacePath(value);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [app, record]);
   const legacyPrompt = initialProject.systemPrompt ?? "";
   useEffect(() => {
     if (instructionsFolder === null) return;
@@ -154,6 +177,12 @@ export function AddProjectModalContent({
         ? { folder: instructionsFolder, text: instructions }
         : null;
 
+    const trimmedWorkspace = workspacePath.trim();
+    if (trimmedWorkspace && !isExistingDirectory(trimmedWorkspace)) {
+      new Notice(`Workspace folder not found: ${trimmedWorkspace}`);
+      return;
+    }
+
     try {
       setIsSubmitting(true);
       const before = instructionEdit
@@ -164,6 +193,9 @@ export function AddProjectModalContent({
       }
       try {
         await onSave(saveData);
+        if (record) {
+          await writeProjectWorkspacePath(app, record.filePath, trimmedWorkspace);
+        }
       } catch (e) {
         if (instructionEdit && before) {
           await restoreInstructionFiles(app, instructionEdit.folder, before);
@@ -225,6 +257,38 @@ export function AddProjectModalContent({
               {instructions !== null && (
                 <ProjectInstructionsField value={instructions} onChange={setInstructions} />
               )}
+
+              <FormField
+                label="Workspace"
+                description="Folder the agent works in. Leave empty for the project folder."
+              >
+                <div className="tw-flex tw-flex-col tw-gap-2">
+                  <Input
+                    type="text"
+                    value={workspacePath}
+                    placeholder="Default (project folder)"
+                    onChange={(e) => setWorkspacePath(e.target.value)}
+                    className="tw-w-full"
+                  />
+                  <div className="tw-flex tw-justify-end tw-gap-2">
+                    <Button
+                      variant="secondary"
+                      onClick={() =>
+                        new VaultFolderPickerModal(app, {
+                          onPick: (folderPath) => setWorkspacePath(folderPath),
+                        }).open()
+                      }
+                    >
+                      Browse
+                    </Button>
+                    {workspacePath && (
+                      <Button variant="ghost" onClick={() => setWorkspacePath("")}>
+                        Clear
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              </FormField>
             </div>
           </div>
 

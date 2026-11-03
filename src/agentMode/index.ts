@@ -48,6 +48,7 @@ import { createExcalidrawTools, EXCALIDRAW_TOOL_NAMES } from "@/excalidraw/excal
 import { OpenArtifactsClient } from "@/openArtifacts/OpenArtifactsClient";
 import { createOpenArtifactsTools } from "@/openArtifacts/openArtifactsTools";
 import { getVaultBase } from "@/utils/vaultPath";
+import { setSessionFoldersProvider } from "@/projects/projectWorkspace";
 import { SkillManager } from "./skills";
 import {
   availableBuiltinAgents,
@@ -274,6 +275,7 @@ export function createAgentSessionManager(app: App, plugin: CopilotPlugin): Agen
     ),
   });
   managerRef = manager;
+  setSessionFoldersProvider(() => manager.listOpencodeSessionFolders("opencode"));
   // `noteSpawnConfigChanged` holds the restart behind Reload while a session is open: a skill
   // file an agent just wrote must not close the conversation that asked for it. https://github.com/Brevilabs/obsidian-copilot-private/issues/475
   skillManager.subscribeToSkillSetChange((backendId) => {

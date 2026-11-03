@@ -1,7 +1,10 @@
 import { DEFAULT_FOLDER_ITEM, type FolderPickerItem } from "@/projects/projectCwdTypes";
 import { collectSessionFolders } from "@/projects/opencodeSessionFolders";
-import { listSelectableVaultFolders } from "@/projects/projectWorkspace";
-import { App, FuzzySuggestModal } from "obsidian";
+import {
+  getSessionFoldersFromProvider,
+  listSelectableVaultFolders,
+} from "@/projects/projectWorkspace";
+import { App, FuzzyMatch, FuzzySuggestModal } from "obsidian";
 
 export interface VaultFolderPickerOptions {
   title?: string;
@@ -11,7 +14,9 @@ export interface VaultFolderPickerOptions {
   getSessionFolders?: () => Promise<string[]>;
 }
 
-export const OPENCODE_SECTION_LABEL = "opencode";
+export const OPENCODE_ICON = "🅾️";
+export const VAULT_ICON = "🗂️";
+export const PROJECT_ICON = "📁";
 
 export class VaultFolderPickerModal extends FuzzySuggestModal<FolderPickerItem> {
   private items: FolderPickerItem[];
@@ -22,34 +27,39 @@ export class VaultFolderPickerModal extends FuzzySuggestModal<FolderPickerItem> 
   ) {
     super(app);
     this.items = [
-      DEFAULT_FOLDER_ITEM,
-      ...listSelectableVaultFolders(app).map((path) => ({ path, label: path })),
+      { ...DEFAULT_FOLDER_ITEM, icon: PROJECT_ICON },
+      ...listSelectableVaultFolders(app).map((path) => ({
+        path,
+        label: path,
+        icon: VAULT_ICON,
+      })),
     ];
     this.setPlaceholder(options.placeholder ?? "Pick a workspace folder");
-    if (options.getSessionFolders) void this.loadSessionFolders(app);
+    void this.loadSessionFolders();
   }
 
-  private async loadSessionFolders(app: App): Promise<void> {
+  private async loadSessionFolders(): Promise<void> {
     let folders: string[];
     try {
-      folders = collectSessionFolders(
-        (await this.options.getSessionFolders?.())?.map((cwd) => ({ cwd })) ?? []
-      );
+      const source = this.options.getSessionFolders ?? getSessionFoldersFromProvider;
+      folders = collectSessionFolders((await source()).map((cwd) => ({ cwd })));
     } catch {
       return;
     }
     if (folders.length === 0) return;
 
-    const vaultFolders = listSelectableVaultFolders(app);
-    const extra: FolderPickerItem[] = folders
-      .filter((folder) => !vaultFolders.some((v) => v === folder.replace(/\\/g, "/")))
-      .map((folder) => ({ path: folder, label: folder, section: OPENCODE_SECTION_LABEL }));
+    const sessionItems: FolderPickerItem[] = folders.map((folder) => ({
+      path: folder,
+      label: folder,
+      icon: OPENCODE_ICON,
+    }));
+    const vaultItems: FolderPickerItem[] = listSelectableVaultFolders(this.app).map((path) => ({
+      path,
+      label: path,
+      icon: VAULT_ICON,
+    }));
 
-    this.items = [
-      DEFAULT_FOLDER_ITEM,
-      ...extra,
-      ...vaultFolders.map((path) => ({ path, label: path })),
-    ];
+    this.items = [{ ...DEFAULT_FOLDER_ITEM, icon: PROJECT_ICON }, ...sessionItems, ...vaultItems];
     this.inputEl?.dispatchEvent(new Event("input"));
   }
 
@@ -58,7 +68,12 @@ export class VaultFolderPickerModal extends FuzzySuggestModal<FolderPickerItem> 
   }
 
   getItemText(item: FolderPickerItem): string {
-    return item.section ? `${item.label}  ·  ${item.section}` : item.label;
+    return item.path || DEFAULT_FOLDER_ITEM.label;
+  }
+
+  renderSuggestion(match: FuzzyMatch<FolderPickerItem>, el: HTMLElement): void {
+    const item = match.item;
+    el.setText(`${item.icon ?? ""} ${item.label}`.trim());
   }
 
   onChooseItem(item: FolderPickerItem): void {

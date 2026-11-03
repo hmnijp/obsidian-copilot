@@ -72,7 +72,14 @@ export function CreateProjectPanel({
     };
     const onPointerDown = (e: MouseEvent) => {
       const target = e.target as Node | null;
-      if (target && !panelRef.current?.contains(target) && !anchorEl.contains(target)) {
+      if (!target) return;
+      if (
+        target.instanceOf(Element) &&
+        target.closest(".modal-container, .prompt, .suggestion-container")
+      ) {
+        return;
+      }
+      if (!panelRef.current?.contains(target) && !anchorEl.contains(target)) {
         onClose();
       }
     };
