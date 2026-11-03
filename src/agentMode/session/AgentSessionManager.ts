@@ -1107,15 +1107,15 @@ export class AgentSessionManager {
   }
 
   getSessionsForAllScopes(): AgentSession[] {
-    const active = this.getSessionsForScope(this.activeProjectId);
-    const rest: AgentSession[] = [];
-    for (const session of this.sessions.values()) {
-      if (session.projectId === this.activeProjectId) continue;
-      if (this.detachedFromTabIds.has(session.internalId)) continue;
-      rest.push(session);
+    if (this.activeProjectId === GLOBAL_SCOPE) {
+      const all: AgentSession[] = [];
+      for (const session of this.sessions.values()) {
+        if (this.detachedFromTabIds.has(session.internalId)) continue;
+        all.push(session);
+      }
+      return all.length === 0 ? EMPTY_SESSIONS : all;
     }
-    if (active.length === 0 && rest.length === 0) return EMPTY_SESSIONS;
-    return [...active, ...rest];
+    return this.getSessionsForScope(this.activeProjectId);
   }
 
   private getSessionIdsForScope(projectId: ProjectScopeId): string[] {
@@ -1126,6 +1126,38 @@ export class AgentSessionManager {
       ids.push(session.internalId);
     }
     return ids;
+  }
+
+  async enterProjectAtSession(projectId: ProjectScopeId, sessionInternalId: string): Promise<void> {
+    const target = this.sessions.get(sessionInternalId);
+    if (!target || target.projectId !== projectId) {
+      await this.enterProject(projectId);
+      return;
+    }
+    if (projectId === GLOBAL_SCOPE) {
+      this.activateInSiblingScope(sessionInternalId);
+      return;
+    }
+    this.setActiveScope(projectId);
+    this.detachedFromTabIds.delete(sessionInternalId);
+    this.activeSessionId = sessionInternalId;
+    this.lastActiveByScope.set(projectId, sessionInternalId);
+    target.clearNeedsAttention();
+    this.notify();
+    this.touchProjectUsage(projectId);
+    await this.ensureScopeInstructions(projectId, getCachedProjectRecordById(projectId)).catch(
+      (e) => logWarn("[AgentMode] could not load the project's instructions", e)
+    );
+  }
+
+  private activateInSiblingScope(sessionInternalId: string): void {
+    const target = this.sessions.get(sessionInternalId);
+    if (!target) return;
+    this.detachedFromTabIds.delete(sessionInternalId);
+    this.activeSessionId = sessionInternalId;
+    this.lastActiveByScope.set(target.projectId, sessionInternalId);
+    target.clearNeedsAttention();
+    this.notify();
   }
 
   async enterProject(projectId: ProjectScopeId): Promise<void> {
@@ -1708,8 +1740,18 @@ export class AgentSessionManager {
     const session = this.sessions.get(id);
     if (!session) return;
     if (this.activeSessionId === id) return;
-    if (session.projectId !== this.activeProjectId) {
-      this.setActiveScope(session.projectId);
+    const crossingScope = session.projectId !== this.activeProjectId;
+    if (crossingScope) {
+      if (session.projectId === GLOBAL_SCOPE) {
+        this.setActiveScope(GLOBAL_SCOPE);
+        this.activateInSiblingScope(id);
+        return;
+      }
+      if (this.activeProjectId !== GLOBAL_SCOPE) return;
+      void this.enterProjectAtSession(session.projectId, id).catch((e) =>
+        logWarn("[AgentMode] could not enter the session's project", e)
+      );
+      return;
     }
     this.detachedFromTabIds.delete(id);
     this.activeSessionId = id;

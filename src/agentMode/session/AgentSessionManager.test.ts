@@ -1503,6 +1503,8 @@ describe("AgentSessionManager", () => {
         const pendingDraft = mgr.createGlobalSessionWithDraft("Review this repair");
         await waitFor(() => expect(releaseInstructionEnsure).toBeDefined());
         mgr.setActiveSession(projectBSession.internalId);
+        await Promise.resolve();
+        await Promise.resolve();
         mgr.setActiveSession(globalSession.internalId);
         releaseInstructionEnsure?.();
 
