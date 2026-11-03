@@ -91,15 +91,26 @@ export function AgentProjectCreateForm({
       {pickWorkspace && app && (
         <FormField
           label="Workspace"
-          description="Folder the agent works in. Defaults to the project folder."
+          description="Folder the agent works in. Leave empty for the project folder."
         >
-          <div className="tw-flex tw-items-center tw-gap-2">
-            <div className="tw-min-w-0 tw-flex-1 tw-truncate tw-text-sm tw-text-normal">
-              {workspace ?? "Default (project folder)"}
+          <div className="tw-flex tw-flex-col tw-gap-2">
+            <Input
+              type="text"
+              value={workspace ?? ""}
+              placeholder="Default (project folder)"
+              onChange={(e) => setWorkspace(e.target.value || null)}
+              className="tw-w-full"
+            />
+            <div className="tw-flex tw-justify-end tw-gap-2">
+              <Button variant="secondary" onClick={handlePickWorkspace} disabled={isSaving}>
+                Browse
+              </Button>
+              {workspace && (
+                <Button variant="ghost" onClick={() => setWorkspace(null)} disabled={isSaving}>
+                  Clear
+                </Button>
+              )}
             </div>
-            <Button variant="secondary" onClick={handlePickWorkspace} disabled={isSaving}>
-              Choose
-            </Button>
           </div>
         </FormField>
       )}
