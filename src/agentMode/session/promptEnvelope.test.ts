@@ -104,6 +104,7 @@ describe("promptEnvelope", () => {
     const PROJECT_PATHS = {
       vaultRoot: "/Users/me/Vault",
       cwd: "/Users/me/code/app",
+      linkStyle: "wikilinks" as const,
       absolutePath: (vaultPath: string) => `/Users/me/Vault/${vaultPath}`,
     };
 
@@ -144,6 +145,22 @@ describe("promptEnvelope", () => {
       expect(text).toContain("A [[Note]] link names a vault note");
       expect(text).toContain("resolves against the vault root, not your working directory");
       expect(text).not.toContain("The vault is your current working directory");
+    });
+
+    it("names a Markdown link as the vault link form when the vault uses Markdown links", () => {
+      const blocks = buildPromptBlocks(
+        "summarize",
+        { notes: [makeFile("a.md")], urls: [] },
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        { ...PROJECT_PATHS, linkStyle: "markdown" as const }
+      );
+      const text = (blocks[0] as { type: "text"; text: string }).text;
+      expect(text).toContain("A [note title](vault relative path) link names a vault note");
+      expect(text).not.toContain("A [[Note]] link");
     });
 
     it("gives an excerpt's note path in the same form as an attached note", () => {
@@ -187,6 +204,7 @@ describe("promptEnvelope", () => {
         {
           vaultRoot: "C:\\Users\\me\\Vault",
           cwd: "c:/users/me/vault/",
+          linkStyle: "wikilinks",
           absolutePath: (vaultPath: string) => `C:\\Users\\me\\Vault\\${vaultPath}`,
         }
       );

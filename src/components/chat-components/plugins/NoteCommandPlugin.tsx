@@ -13,6 +13,7 @@ import {
   PillData,
 } from "@/components/chat-components/utils/lexicalTextUtils";
 import { NotePreviewCache } from "@/components/chat-components/utils/notePreviewUtils";
+import { vaultNoteLink } from "@/utils/noteLink";
 
 interface NoteCommandPluginProps {
   currentActiveFile?: TFile | null;
@@ -69,6 +70,7 @@ export function NoteCommandPlugin({
           type: "notes",
           title: option.title,
           data: option.file,
+          linkText: vaultNoteLink(app, option.file),
         };
 
         editor.update(() => {
@@ -76,7 +78,7 @@ export function NoteCommandPlugin({
         });
       }
     },
-    [editor]
+    [editor, app]
   );
 
   const { state, handleHighlight } = useTypeaheadPlugin({

@@ -19,6 +19,7 @@ const mockApp = {
   vault: {
     getMarkdownFiles: jest.fn(),
     getAllLoadedFiles: jest.fn(),
+    getFiles: jest.fn(),
   },
   metadataCache: {
     getFirstLinkpathDest: jest.fn(),
@@ -41,6 +42,7 @@ describe("lexicalTextUtils", () => {
         noteName === "Valid Note" || noteName === "Valid Note.md" ? new TFile() : null
       );
       mockApp.workspace.getActiveFile.mockReturnValue(null);
+      mockApp.vault.getMarkdownFiles.mockReturnValue([]);
       mockApp.vault.getAllLoadedFiles.mockReturnValue([
         mockTFolder({ path: "Projects", name: "Projects" }),
         mockTFolder({ path: "folder with spaces", name: "folder with spaces" }),
@@ -69,6 +71,38 @@ describe("lexicalTextUtils", () => {
         text("Visit "),
         { type: "url-pill", content: "https://example.com", url: "https://example.com" },
         text(" for details"),
+      ]);
+    });
+
+    it("turns a Markdown link to a vault note into the same note pill as a wikilink", () => {
+      expect(
+        parseTextForPills(app, "See [Valid Note](Valid%20Note.md) now", { includeNotes: true })
+      ).toEqual([
+        text("See "),
+        {
+          type: "note-pill",
+          content: "Valid Note",
+          file: expect.any(TFile) as unknown,
+          isActive: false,
+        },
+        text(" now"),
+      ]);
+    });
+
+    it("leaves a Markdown link to an external page, and an image embed, as text", () => {
+      const segments = parseTextForPills(app, "[site](https://example.com) ![shot](shot.png)", {
+        includeNotes: true,
+      });
+
+      expect(segments.every((segment) => segment.type === "text")).toBe(true);
+      expect(segments.map((segment) => segment.content).join("")).toBe(
+        "[site](https://example.com) ![shot](shot.png)"
+      );
+    });
+
+    it("leaves a Markdown link that resolves to no vault file as text", () => {
+      expect(parseTextForPills(app, "[Gone](Gone.md)", { includeNotes: true })).toEqual([
+        text("[Gone](Gone.md)"),
       ]);
     });
 

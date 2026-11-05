@@ -9,6 +9,7 @@ import {
   isWebSelectedTextContext,
   type MessageContext,
 } from "@/types/message";
+import type { VaultLinkStyle } from "@/utils/noteLink";
 
 const OPEN_TAG = "<user-message>";
 const CLOSE_TAG = "</user-message>";
@@ -16,14 +17,16 @@ const CLOSE_TAG = "</user-message>";
 export interface AgentPathContext {
   vaultRoot: string;
   cwd: string;
+  linkStyle: VaultLinkStyle;
   absolutePath: (vaultPath: string) => string;
 }
 
 const VAULT_IS_WORKING_DIRECTORY =
   "The user attached the following vault items as context. The vault is your current working directory; open them if you need their contents.";
 
-function workingDirectoryEnvelopeIntro({ vaultRoot, cwd }: AgentPathContext): string {
-  return `The user attached the following vault items as context. The vault root is \`${vaultRoot}\` and your working directory is \`${cwd}\`. The paths below are absolute. A [[Note]] link names a vault note and resolves against the vault root, not your working directory.`;
+function workingDirectoryEnvelopeIntro({ vaultRoot, cwd, linkStyle }: AgentPathContext): string {
+  const linkExample = linkStyle === "markdown" ? "[note title](vault relative path)" : "[[Note]]";
+  return `The user attached the following vault items as context. The vault root is \`${vaultRoot}\` and your working directory is \`${cwd}\`. The paths below are absolute. A ${linkExample} link names a vault note and resolves against the vault root, not your working directory.`;
 }
 
 function comparisonPath(value: string): string {

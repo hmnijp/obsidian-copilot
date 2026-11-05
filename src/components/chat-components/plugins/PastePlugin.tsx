@@ -47,7 +47,7 @@ export function PastePlugin({ enableURLPills = false, onImagePaste }: PastePlugi
         }
 
         const plainText = clipboardData.getData("text/plain");
-        const hasNoteLinks = plainText.includes("[[");
+        const hasNoteLinks = plainText.includes("[[") || plainText.includes("](");
         const hasURLs = enableURLPills && plainText.includes("http");
         const hasTools = plainText.includes("@");
         const hasTags = plainText.includes("#");
@@ -85,7 +85,7 @@ export function PastePlugin({ enableURLPills = false, onImagePaste }: PastePlugi
             return;
           }
 
-          const nodes = createNodesFromSegments(segments);
+          const nodes = createNodesFromSegments(segments, app);
           if (nodes.length > 0) {
             selection.insertNodes(nodes);
           }

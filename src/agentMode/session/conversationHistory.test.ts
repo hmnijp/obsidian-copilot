@@ -82,6 +82,7 @@ describe("conversationHistory", () => {
       const block = buildConversationHistoryBlock([msg], CONVERSATION_HISTORY_MAX_CHARS, {
         vaultRoot: "/Users/me/Vault",
         cwd: "/Users/me/code/app",
+        linkStyle: "wikilinks",
         absolutePath: (vaultPath) => `/Users/me/Vault/${vaultPath}`,
       })!;
 
@@ -95,6 +96,7 @@ describe("conversationHistory", () => {
       const block = buildConversationHistoryBlock([msg], CONVERSATION_HISTORY_MAX_CHARS, {
         vaultRoot: "/Users/me/Vault",
         cwd: "/Users/me/Vault",
+        linkStyle: "wikilinks",
         absolutePath: (vaultPath) => `/Users/me/Vault/${vaultPath}`,
       })!;
 

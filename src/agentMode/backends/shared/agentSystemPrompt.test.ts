@@ -47,6 +47,18 @@ const ISSUE_3816 = "https://github.com/logancyang/obsidian-copilot/issues/3816";
 const ISSUE_3868 = "https://github.com/logancyang/obsidian-copilot/issues/3868";
 const AGENT = "opencode";
 const APP = {} as App;
+const MARKDOWN_LINKS_APP = {
+  vault: {
+    getConfig: (key: string) => (key === "useMarkdownLinks" ? true : undefined),
+  },
+} as unknown as App;
+const MARKDOWN_EXCALIDRAW_APP = {
+  ...MARKDOWN_LINKS_APP,
+  plugins: {
+    getPlugin: (id: string) =>
+      id === "obsidian-excalidraw-plugin" ? { ea: { executeCLI: jest.fn() } } : null,
+  },
+} as unknown as App;
 const EXCALIDRAW_APP = {
   plugins: {
     getPlugin: (id: string) =>
@@ -99,6 +111,23 @@ describe("agentSystemPrompt", () => {
       expect(prompt.startsWith(COPILOT_PROMPT_BASE)).toBe(true);
       expect(prompt).toContain(COPILOT_FOLDER_MENTION_DIRECTIVE);
       expect(prompt).not.toContain("<user_custom_instructions>");
+    });
+
+    it("cites notes and embeds images in the vault's link format, keeping wikilinks as the default", () => {
+      expect(buildAgentSystemPrompt(AGENT, APP)).toContain("[[note title]] to cite notes");
+      expect(buildAgentSystemPrompt(AGENT, APP)).toContain("![[file.png]] to show vault images");
+
+      const markdownPrompt = buildAgentSystemPrompt(AGENT, MARKDOWN_LINKS_APP);
+      expect(markdownPrompt).toContain("[note title](vault relative path) to cite notes");
+      expect(markdownPrompt).toContain("![alt](vault relative path) to show vault images");
+      expect(markdownPrompt).not.toContain("[[note title]]");
+    });
+
+    it("embeds Excalidraw drawings in the vault's link format too", () => {
+      expect(buildAgentSystemPrompt(AGENT, MARKDOWN_EXCALIDRAW_APP)).toContain(
+        "embed each one (![](name.excalidraw)) in the note it belongs to"
+      );
+      expect(buildAgentSystemPrompt(AGENT, EXCALIDRAW_APP)).toContain(COPILOT_EXCALIDRAW_STEERING);
     });
 
     it("suppresses the base prompt when 'disable builtin' is on, keeping the folder-mention directive", () => {
