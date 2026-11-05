@@ -8,6 +8,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
+import { Separator } from "@/components/ui/separator";
 // import { useApp } from "@/context";
 // import { useSessionsSidebarOpen } from "@/agentMode/navigator/hooks/useSessionsSidebarOpen";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -144,6 +145,12 @@ export const AgentTabStrip: React.FC<Props> = ({ manager, onOpenSidebar }) => {
     [sessions, visibleCount, activeId]
   );
 
+  const activeScope = manager.getActiveProjectId();
+  const scopeBreakIndex = React.useMemo(
+    () => visibleSessions.findIndex((session) => session.projectId !== activeScope),
+    [visibleSessions, activeScope]
+  );
+
   const handleNew = React.useCallback(() => {
     if (manager.getIsStarting()) return;
     manager
@@ -182,21 +189,25 @@ export const AgentTabStrip: React.FC<Props> = ({ manager, onOpenSidebar }) => {
         className="tw-relative tw-flex tw-min-w-0 tw-flex-1 tw-items-stretch tw-gap-1 tw-overflow-hidden tw-px-2"
       >
         <div role="tablist" className="tw-flex tw-min-w-0 tw-items-stretch tw-gap-1">
-          {visibleSessions.map((session) => (
-            <SessionTab
-              key={session.internalId}
-              session={session}
-              isActive={session.internalId === activeId}
-              isRenaming={renamingId === session.internalId}
-              onActivate={() => manager.setActiveSession(session.internalId)}
-              onClose={() => handleClose(session.internalId)}
-              onStartRename={() => setRenamingId(session.internalId)}
-              onSubmitRename={(label) => {
-                manager.renameSession(session.internalId, label);
-                setRenamingId(null);
-              }}
-              onCancelRename={() => setRenamingId(null)}
-            />
+          {visibleSessions.map((session, index) => (
+            <React.Fragment key={session.internalId}>
+              {index === scopeBreakIndex && scopeBreakIndex > 0 && (
+                <Separator orientation="vertical" className="tw-my-1.5" />
+              )}
+              <SessionTab
+                session={session}
+                isActive={session.internalId === activeId}
+                isRenaming={renamingId === session.internalId}
+                onActivate={() => manager.setActiveSession(session.internalId)}
+                onClose={() => handleClose(session.internalId)}
+                onStartRename={() => setRenamingId(session.internalId)}
+                onSubmitRename={(label) => {
+                  manager.renameSession(session.internalId, label);
+                  setRenamingId(null);
+                }}
+                onCancelRename={() => setRenamingId(null)}
+              />
+            </React.Fragment>
           ))}
         </div>
         {overflowSessions.length > 0 && (

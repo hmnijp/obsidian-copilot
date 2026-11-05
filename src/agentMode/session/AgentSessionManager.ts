@@ -1149,14 +1149,18 @@ export class AgentSessionManager {
   // The tab strip lists every open chat, so switching to any of them stays one click away.
   getSessionsForAllScopes(): AgentSession[] {
     const active = this.getSessionsForScope(this.activeProjectId);
-    const rest: AgentSession[] = [];
+    const otherProjects: AgentSession[] = [];
+    const globalChats: AgentSession[] = [];
     for (const session of this.sessions.values()) {
       if (session.projectId === this.activeProjectId) continue;
       if (this.detachedFromTabIds.has(session.internalId)) continue;
-      rest.push(session);
+      if (session.projectId === GLOBAL_SCOPE) globalChats.push(session);
+      else otherProjects.push(session);
     }
-    if (active.length === 0 && rest.length === 0) return EMPTY_SESSIONS;
-    return [...active, ...rest];
+    if (active.length === 0 && otherProjects.length === 0 && globalChats.length === 0) {
+      return EMPTY_SESSIONS;
+    }
+    return [...active, ...otherProjects, ...globalChats];
   }
 
   private getSessionIdsForScope(projectId: ProjectScopeId): string[] {

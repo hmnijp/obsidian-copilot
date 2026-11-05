@@ -6188,7 +6188,7 @@ describe("AgentSessionManager", () => {
         const inB = await createWorkedSession(mgr, undefined, "proj-b");
         await mgr.enterProject("proj-a");
 
-        expect(mgr.getSessionsForAllScopes()).toEqual([inA, global, inB]);
+        expect(mgr.getSessionsForAllScopes()).toEqual([inA, inB, global]);
       });
 
       it("leaves out a chat whose tab was closed", async () => {

@@ -165,6 +165,41 @@ describe("AgentTabStrip", () => {
       expect(screen.getByRole("tab", { name: /Project chat/ })).toBeTruthy();
     });
 
+    it("separates the chats of the active scope from the rest", () => {
+      const clientWidth = Object.getOwnPropertyDescriptor(HTMLElement.prototype, "clientWidth");
+      Object.defineProperty(HTMLElement.prototype, "clientWidth", {
+        configurable: true,
+        value: 400,
+      });
+      try {
+        const sessionIn = (internalId: string, projectId: string, label: string) => ({
+          internalId,
+          projectId,
+          backendId: "test",
+          subscribe: () => () => {},
+          getLabel: () => label,
+          getStatus: () => "idle",
+          getNeedsAttention: () => false,
+        });
+        const projectChat = sessionIn("p1", "project-1", "Project chat");
+        const globalChat = sessionIn("g1", "global", "Global chat");
+        const manager = {
+          subscribe: () => () => {},
+          getSessionsForAllScopes: () => [projectChat, globalChat],
+          getActiveProjectId: () => "project-1",
+          getActiveSession: () => projectChat,
+          getIsStarting: () => false,
+        };
+
+        const { container } = renderStrip(manager);
+
+        expect(screen.getAllByRole("tab")).toHaveLength(2);
+        expect(container.querySelector('[data-orientation="vertical"]')).not.toBeNull();
+      } finally {
+        if (clientWidth) Object.defineProperty(HTMLElement.prototype, "clientWidth", clientWidth);
+      }
+    });
+
     it("detaches a closed tab without closing its backend session for https://github.com/Brevilabs/obsidian-copilot-private/issues/429", () => {
       const session = {
         internalId: "existing",
