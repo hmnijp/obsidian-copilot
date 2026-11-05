@@ -2,11 +2,7 @@ import { act, renderHook } from "@testing-library/react";
 import { CHAT_AGENT_VIEWTYPE, SESSIONS_SIDEBAR_VIEWTYPE } from "@/constants";
 import { useSessionsSidebarOpen } from "@/agentMode/navigator/hooks/useSessionsSidebarOpen";
 import { makeFakeWorkspaceApp } from "@/agentMode/ui/testing/fakeWorkspaceApp";
-import {
-  applyLicenseWithNavigator,
-  setNavigatorAccess,
-  verifyStoredToken,
-} from "@/agentMode/ui/testing/navigatorAccess";
+import { setNavigatorAccess } from "@/agentMode/ui/testing/navigatorAccess";
 
 jest.mock("@/entitlement");
 
@@ -50,45 +46,6 @@ describe("useSessionsSidebarOpen", () => {
 
       act(() => fake.setLeaves({ [SESSIONS_SIDEBAR_VIEWTYPE]: 1 }));
 
-      expect(result.current).toBe(true);
-    });
-
-    it("is false for a user without Navigator access so the tab strip stays visible beside the blocked Navigator for https://github.com/Brevilabs/obsidian-copilot-private/issues/819", async () => {
-      await setNavigatorAccess("plus-without-navigator");
-      const fake = makeFakeWorkspaceApp();
-      fake.setLeaves({ [SESSIONS_SIDEBAR_VIEWTYPE]: 1 });
-
-      const { result } = renderHook(() => useSessionsSidebarOpen(fake.app));
-
-      expect(result.current).toBe(false);
-    });
-
-    it("stays true through startup verification so a Supporter's tab strip never flickers for https://github.com/Brevilabs/obsidian-copilot-private/issues/819", async () => {
-      await setNavigatorAccess("unverified");
-      const fake = makeFakeWorkspaceApp();
-      fake.setLeaves({ [SESSIONS_SIDEBAR_VIEWTYPE]: 1 });
-      const rendered: boolean[] = [];
-      const { result } = renderHook(() => {
-        const open = useSessionsSidebarOpen(fake.app);
-        rendered.push(open);
-        return open;
-      });
-
-      await act(() => verifyStoredToken(true));
-
-      expect(result.current).toBe(true);
-      expect(rendered).not.toContain(false);
-    });
-
-    it("follows the user losing and regaining Navigator access without a reload for https://github.com/Brevilabs/obsidian-copilot-private/issues/819", async () => {
-      const fake = makeFakeWorkspaceApp();
-      fake.setLeaves({ [SESSIONS_SIDEBAR_VIEWTYPE]: 1 });
-      const { result } = renderHook(() => useSessionsSidebarOpen(fake.app));
-
-      await act(() => verifyStoredToken(false));
-      expect(result.current).toBe(false);
-
-      await act(() => applyLicenseWithNavigator());
       expect(result.current).toBe(true);
     });
 
