@@ -8,26 +8,40 @@ jest.mock("@/logger", () => ({
 
 const file = mockTFile({ path: "Notes/Test.md", basename: "Test" });
 
-function appWith(fileManager: unknown, getConfig?: (key: string) => unknown): App {
-  return { fileManager, vault: { getConfig } } as unknown as App;
+function appWith(
+  fileManager: unknown,
+  settings?: Record<string, unknown>,
+  withGetConfig = true
+): App {
+  const vault = withGetConfig
+    ? {
+        settings: settings ?? {},
+        getConfig(this: { settings: Record<string, unknown> }, key: string) {
+          return this.settings[key];
+        },
+      }
+    : {};
+  return { fileManager, vault } as unknown as App;
 }
 
 describe("noteLink", () => {
   describe("vaultLinkStyle()", () => {
-    it("reads Obsidian's Markdown link preference", () => {
-      expect(vaultLinkStyle(appWith({}, () => true))).toBe("markdown");
-      expect(vaultLinkStyle(appWith({}, () => false))).toBe("wikilinks");
+    it("reads Obsidian's Markdown link preference from the vault it is given", () => {
+      expect(vaultLinkStyle(appWith({}, { useMarkdownLinks: true }))).toBe("markdown");
+      expect(vaultLinkStyle(appWith({}, { useMarkdownLinks: false }))).toBe("wikilinks");
     });
 
     it("keeps wikilinks when the preference is unavailable", () => {
       expect(vaultLinkStyle(appWith({}))).toBe("wikilinks");
-      expect(
-        vaultLinkStyle(
-          appWith({}, () => {
+      expect(vaultLinkStyle(appWith({}, {}, false))).toBe("wikilinks");
+      const throwing = {
+        vault: {
+          getConfig: () => {
             throw new Error("no config");
-          })
-        )
-      ).toBe("wikilinks");
+          },
+        },
+      } as unknown as App;
+      expect(vaultLinkStyle(throwing)).toBe("wikilinks");
     });
   });
 

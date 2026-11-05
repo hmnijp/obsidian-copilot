@@ -5,8 +5,8 @@ export type VaultLinkStyle = "wikilinks" | "markdown";
 
 export function vaultLinkStyle(app: App): VaultLinkStyle {
   try {
-    const config = (app.vault as unknown as { getConfig?: (key: string) => unknown }).getConfig;
-    return config?.("useMarkdownLinks") === true ? "markdown" : "wikilinks";
+    const vault = app.vault as unknown as { getConfig?: (key: string) => unknown };
+    return vault.getConfig?.("useMarkdownLinks") === true ? "markdown" : "wikilinks";
   } catch {
     return "wikilinks";
   }
