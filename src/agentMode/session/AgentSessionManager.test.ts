@@ -83,6 +83,7 @@ jest.mock("@/utils/notificationSound", () => ({
 
 function mockDefaultSettings() {
   return {
+    autoCloseEmptyChats: true,
     agentMode: {
       activeBackend: "opencode",
       backends: {},
@@ -1454,6 +1455,19 @@ describe("AgentSessionManager", () => {
           expect.objectContaining({ existingPath: undefined })
         );
         await mgr.shutdown();
+      });
+
+      it("keeps a chat left without a message open when auto-close is off", async () => {
+        getSettingsMock.mockReturnValue({
+          ...getSettingsMock(),
+          autoCloseEmptyChats: false,
+        });
+        const mgr = buildManager();
+        const first = await mgr.createSession();
+        const second = await mgr.createSession();
+
+        expect(closedSessions()).toEqual([]);
+        expect(mgr.getSessions()).toEqual([first, second]);
       });
 
       it("keeps every chat the user sent a message in open and closes each chat left without one, sparing the shown chat, for https://github.com/Brevilabs/obsidian-copilot-private/issues/812", async () => {

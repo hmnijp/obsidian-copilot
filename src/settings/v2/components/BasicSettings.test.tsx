@@ -135,6 +135,16 @@ describe("BasicSettings", () => {
       expect(settingsStore.get(settingsAtom).autoAttachActiveNote).toBe(false);
     });
 
+    it("keeps empty chats open from the switching switch", () => {
+      render(<BasicSettings />);
+
+      const row = screen.getByText("Close empty chats when switching away").parentElement!
+        .parentElement!;
+      fireEvent.click(within(row).getByRole("switch"));
+
+      expect(settingsStore.get(settingsAtom).autoCloseEmptyChats).toBe(false);
+    });
+
     it("binds the Copilot folder input to the persisted root", () => {
       render(<BasicSettings />);
       expect(screen.getByLabelText<HTMLInputElement>("Copilot folder").value).toBe("copilot");

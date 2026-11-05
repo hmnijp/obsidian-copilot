@@ -64,6 +64,7 @@ export interface CopilotSettings {
   defaultConversationTag: string;
   autosaveChat: boolean;
   autoAttachActiveNote: boolean;
+  autoCloseEmptyChats: boolean;
   customPromptsFolder: string;
   chatNoteContextPath: string;
   chatNoteContextTags: string[];
@@ -601,6 +602,10 @@ export function sanitizeSettings(settings: CopilotSettings): CopilotSettings {
   // Settings saved before this switch existed must keep auto-attaching the active note. https://github.com/logancyang/obsidian-copilot/issues/3663
   if (typeof sanitizedSettings.autoAttachActiveNote !== "boolean") {
     sanitizedSettings.autoAttachActiveNote = DEFAULT_SETTINGS.autoAttachActiveNote;
+  }
+
+  if (typeof sanitizedSettings.autoCloseEmptyChats !== "boolean") {
+    sanitizedSettings.autoCloseEmptyChats = DEFAULT_SETTINGS.autoCloseEmptyChats;
   }
 
   const autoCompactThreshold = Number(settingsToSanitize.autoCompactThreshold);

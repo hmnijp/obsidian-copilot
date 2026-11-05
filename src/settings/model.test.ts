@@ -70,6 +70,17 @@ describe("model", () => {
   });
 
   describe("sanitizeSettings()", () => {
+    it("falls back to auto-close when the empty-chat switch is missing", () => {
+      const settingsWithoutFlag = {
+        ...DEFAULT_SETTINGS,
+        autoCloseEmptyChats: undefined,
+      } as unknown as CopilotSettings;
+
+      const sanitized = sanitizeSettings(settingsWithoutFlag);
+
+      expect(sanitized.autoCloseEmptyChats).toBe(DEFAULT_SETTINGS.autoCloseEmptyChats);
+    });
+
     it("falls back to ENTER when defaultSendShortcut is missing", () => {
       const settingsWithoutShortcut = {
         ...DEFAULT_SETTINGS,

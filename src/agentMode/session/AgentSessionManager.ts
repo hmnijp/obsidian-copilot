@@ -1944,7 +1944,9 @@ export class AgentSessionManager {
     if (this.activeSessionId !== null) {
       const left = this.lastShownSessionId;
       this.lastShownSessionId = this.activeSessionId;
-      if (left && left !== this.activeSessionId) this.closeSessionIfLeft(left);
+      if (left && left !== this.activeSessionId && getSettings().autoCloseEmptyChats) {
+        this.closeSessionIfLeft(left);
+      }
     }
     this.drafts.prune();
     for (const l of this.listeners) {

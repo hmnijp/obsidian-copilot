@@ -245,6 +245,14 @@ export const BasicSettings: React.FC = () => {
         />
 
         <SettingItem
+          type="switch"
+          title="Close empty chats when switching away"
+          description="Closes a chat with no message yet once you switch to another chat or leave the project. With this off, every open chat stays in the tab strip."
+          checked={settings.autoCloseEmptyChats}
+          onCheckedChange={(checked) => updateSetting("autoCloseEmptyChats", checked)}
+        />
+
+        <SettingItem
           type="custom"
           title="Copilot folder location"
           description="Where Copilot keeps chats, commands, memory, and more. Its other folders live inside this one."

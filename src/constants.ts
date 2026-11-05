@@ -473,6 +473,7 @@ export const DEFAULT_SETTINGS: CopilotSettings = {
   defaultConversationTag: "copilot-conversation",
   autosaveChat: true,
   autoAttachActiveNote: true,
+  autoCloseEmptyChats: true,
   defaultOpenArea: DEFAULT_OPEN_AREA.VIEW,
   defaultSendShortcut: SEND_SHORTCUT.ENTER,
   customPromptsFolder: DEFAULT_CUSTOM_PROMPTS_FOLDER,
