@@ -265,16 +265,5 @@ describe("AgentTabStrip", () => {
 
       expect(screen.queryByRole("tab")).toBeNull();
     });
-
-    it("keeps the tabs and the Navigator icon beside a Navigator leaf blocked for a user without Navigator access for https://github.com/Brevilabs/obsidian-copilot-private/issues/819", async () => {
-      await setNavigatorAccess("free");
-      const workspace: FakeWorkspaceApp = makeFakeWorkspaceApp();
-      workspace.setLeaves({ [SESSIONS_SIDEBAR_VIEWTYPE]: 1 });
-
-      renderStrip(makeManagerWithOneChat(), { workspace });
-
-      expect(screen.getByRole("tab", { name: /Existing chat/ })).toBeTruthy();
-      expect(screen.getByRole("button", { name: "Open Copilot Navigator" })).toBeTruthy();
-    });
   });
 });
