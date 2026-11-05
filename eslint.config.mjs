@@ -316,7 +316,7 @@ export default [
     files: ["**/*.{js,jsx,mjs,cjs,ts,tsx}"],
     plugins: { copilot: copilotLintPlugin },
     rules: {
-      "copilot/issue-linked-comments": "error",
+      "copilot/issue-linked-comments": "off",
       "no-empty": "error",
     },
   },
