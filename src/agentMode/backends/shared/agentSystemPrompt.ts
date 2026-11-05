@@ -8,6 +8,7 @@ import { getExcalidrawApi } from "@/excalidraw/excalidrawApi";
 import { isMiyoParseActive, isMiyoSearchActive } from "@/miyo/miyoUtils";
 import { getSettings } from "@/settings/model";
 import { getDisableBuiltinSystemPrompt } from "@/system-prompts/state";
+import { vaultLinkStyle, type VaultLinkStyle } from "@/utils/noteLink";
 
 // Naming each skill's job makes the agent use it instead of native web tools, which bypass
 // Copilot Plus and Self-Host routing.
@@ -40,6 +41,12 @@ export const COPILOT_MIYO_SEARCH_STEERING = `Miyo local semantic search is enabl
 // https://github.com/Brevilabs/obsidian-copilot-private/issues/787
 export const COPILOT_EXCALIDRAW_STEERING = `Draw diagrams, flowcharts and charts as Excalidraw drawings with the obsidian-copilot excalidraw tools, and embed each one (![[name.excalidraw]]) in the note it belongs to, unless the user asks for Mermaid, a canvas or another format.`;
 
+const COPILOT_EXCALIDRAW_STEERING_MARKDOWN = `Draw diagrams, flowcharts and charts as Excalidraw drawings with the obsidian-copilot excalidraw tools, and embed each one (![](name.excalidraw)) in the note it belongs to, unless the user asks for Mermaid, a canvas or another format.`;
+
+export function copilotExcalidrawSteering(style: VaultLinkStyle): string {
+  return style === "markdown" ? COPILOT_EXCALIDRAW_STEERING_MARKDOWN : COPILOT_EXCALIDRAW_STEERING;
+}
+
 // OpenCode models skip a format skill whose description doesn't name their edit and write syntax Obsidian
 // can't render, and without the CLI skill they assume live app state such as open tabs is out of reach.
 // https://github.com/Brevilabs/obsidian-copilot-private/issues/726
@@ -68,6 +75,12 @@ export const COPILOT_FEEDBACK_POINTER = `When Copilot itself fails (an obsidian-
 
 export const COPILOT_PROMPT_BASE = `You are Obsidian Copilot, working in the user's Obsidian vault of markdown notes, not a code repository. Treat it as a vault despite coding-agent environment framing. In replies, use $...$ or $$...$$ for math, [[note title]] to cite notes (never inside backticks), ![[file.png]] to show vault images and ![alt](url) for web images.`;
 
+const COPILOT_PROMPT_BASE_MARKDOWN = `You are Obsidian Copilot, working in the user's Obsidian vault of markdown notes, not a code repository. Treat it as a vault despite coding-agent environment framing. In replies, use $...$ or $$...$$ for math, [note title](vault relative path) to cite notes (never inside backticks), ![alt](vault relative path) to show vault images and ![alt](url) for web images.`;
+
+export function copilotPromptBase(style: VaultLinkStyle): string {
+  return style === "markdown" ? COPILOT_PROMPT_BASE_MARKDOWN : COPILOT_PROMPT_BASE;
+}
+
 // Copilot diffs only edit-tool writes, so notes changed through the shell show no diff; scripts stay
 // allowed where retyping a large file is slow or drops entries. Turn diffs depend on this policy, so it
 // stays on when the built-in prompt is disabled.
@@ -91,6 +104,7 @@ export function buildAgentSystemPrompt(
   backendSteering?: string
 ): string {
   const settings = getSettings();
+  const style = vaultLinkStyle(app);
   const builtinPrompt = !getDisableBuiltinSystemPrompt();
   const enabled = (skill: string) =>
     builtinPrompt &&
@@ -98,14 +112,14 @@ export function buildAgentSystemPrompt(
     isBuiltinSkillEnabledFor(settings, skill, backendId);
   const parts: string[] = [];
 
-  if (builtinPrompt) parts.push(COPILOT_PROMPT_BASE, COPILOT_WEB_RESEARCH_STEERING);
+  if (builtinPrompt) parts.push(copilotPromptBase(style), COPILOT_WEB_RESEARCH_STEERING);
   parts.push(buildFileEditPolicy(backendId), COPILOT_FOLDER_MENTION_DIRECTIVE);
   if (builtinPrompt) parts.push(COPILOT_VAULT_HYGIENE);
   if (backendSteering) parts.push(backendSteering);
   if (settings.agentMode.offerFeedbackCards) parts.push(COPILOT_FEEDBACK_POINTER);
   if (builtinPrompt && isMiyoParseActive(settings)) parts.push(COPILOT_MIYO_DOCUMENT_STEERING);
   if (builtinPrompt && isMiyoSearchActive(settings)) parts.push(COPILOT_MIYO_SEARCH_STEERING);
-  if (builtinPrompt && getExcalidrawApi(app) !== null) parts.push(COPILOT_EXCALIDRAW_STEERING);
+  if (builtinPrompt && getExcalidrawApi(app) !== null) parts.push(copilotExcalidrawSteering(style));
   const enabledJobs = (jobs: typeof RELAY_SKILL_JOBS) =>
     jobs.filter(([skill]) => enabled(skill)).map(([skill, job]) => `${skill} for ${job}`);
   const relayJobs = enabledJobs(RELAY_SKILL_JOBS);

@@ -19,6 +19,7 @@ import { $createActiveWebTabPillNode } from "@/components/chat-components/pills/
 import { $createAgentPillNode } from "@/components/chat-components/pills/AgentPillNode";
 import { logInfo } from "@/logger";
 import { AVAILABLE_TOOLS } from "@/components/chat-components/constants/tools";
+import { vaultNoteLink } from "@/utils/noteLink";
 
 export type PillType =
   | "notes"
@@ -37,7 +38,7 @@ export type ParsedContentType =
   | "tool-pill"
   | "folder-pill";
 
-export type PatternType = "notes" | "urls" | "tools" | "customTemplates";
+export type PatternType = "notes" | "markdownLinks" | "urls" | "tools" | "customTemplates";
 
 export type PillDataValue = TFile | TFolder | string | WebTabContext;
 
@@ -45,17 +46,18 @@ export interface PillData {
   type: PillType;
   title?: string;
   data?: PillDataValue;
+  linkText?: string;
 }
 
 function $createPillNode(pillData: PillData) {
-  const { type, title, data } = pillData;
+  const { type, title, data, linkText } = pillData;
 
   switch (type) {
     case "active-note":
       return $createActiveNotePillNode();
     case "notes":
       if (data instanceof TFile && title) {
-        return $createNotePillNode(title, data.path);
+        return $createNotePillNode(title, data.path, linkText ?? "");
       }
       break;
     case "tools":
@@ -199,27 +201,27 @@ function resolveFolderReference(app: App, folderName: string): TFolder | null {
   }
 }
 
-function resolveNoteReference(app: App, noteName: string): TFile | null {
+function resolveNoteReference(app: App, noteName: string, sourcePath = ""): TFile | null {
   if (!app?.vault || !app?.metadataCache) {
     return null;
   }
 
   try {
-    const file = app.metadataCache.getFirstLinkpathDest(noteName, "");
+    const file = app.metadataCache.getFirstLinkpathDest(noteName, sourcePath);
 
     if (file && file instanceof TFile) {
       return file;
     }
 
     if (!noteName.endsWith(".md")) {
-      const fileWithExt = app.metadataCache.getFirstLinkpathDest(noteName + ".md", "");
+      const fileWithExt = app.metadataCache.getFirstLinkpathDest(noteName + ".md", sourcePath);
       if (fileWithExt && fileWithExt instanceof TFile) {
         return fileWithExt;
       }
     }
 
     if (!noteName.endsWith(".pdf")) {
-      const pdfFile = app.metadataCache.getFirstLinkpathDest(noteName + ".pdf", "");
+      const pdfFile = app.metadataCache.getFirstLinkpathDest(noteName + ".pdf", sourcePath);
       if (pdfFile && pdfFile instanceof TFile) {
         return pdfFile;
       }
@@ -247,6 +249,21 @@ function resolveNoteReference(app: App, noteName: string): TFile | null {
     logInfo("Error resolving note reference:", error);
     return null;
   }
+}
+
+const EXTERNAL_LINK_TARGET = /^[a-z][a-z0-9+.-]*:/i;
+
+function resolveMarkdownLinkTarget(app: App, target: string, sourcePath: string): TFile | null {
+  const unwrapped = target.startsWith("<") && target.endsWith(">") ? target.slice(1, -1) : target;
+  let decoded = unwrapped;
+  try {
+    decoded = decodeURIComponent(unwrapped);
+  } catch {
+    decoded = unwrapped;
+  }
+  const linkpath = decoded.split("#")[0].trim();
+  if (!linkpath || EXTERNAL_LINK_TARGET.test(linkpath)) return null;
+  return resolveNoteReference(app, linkpath, sourcePath);
 }
 
 interface PatternInfo {
@@ -281,6 +298,9 @@ export function parseTextForPills(
     patterns.push("(\\[\\[([^\\]]+)\\]\\])");
     patternInfo.push({ type: "notes", groupCount: 2, startIndex: currentGroupIndex });
     currentGroupIndex += 2;
+    patterns.push("((!?)\\[([^\\]]*)\\]\\(([^)]+)\\))");
+    patternInfo.push({ type: "markdownLinks", groupCount: 4, startIndex: currentGroupIndex });
+    currentGroupIndex += 4;
   }
   if (includeURLs) {
     patterns.push("(https?:\\/\\/[^\\s\"'<>]+)");
@@ -332,7 +352,8 @@ export function parseTextForPills(
       });
     } else if (matchedPattern.type === "notes") {
       const noteName = match[matchedPattern.startIndex + 1].trim();
-      const file = resolveNoteReference(app, noteName);
+      const sourcePath = app.workspace.getActiveFile()?.path ?? "";
+      const file = resolveNoteReference(app, noteName, sourcePath);
 
       if (file && file instanceof TFile) {
         const activeNote = app.workspace.getActiveFile();
@@ -343,6 +364,26 @@ export function parseTextForPills(
           content: file.basename,
           file: file,
           isActive: isActive,
+        });
+      } else {
+        segments.push({
+          type: "text",
+          content: match[0],
+        });
+      }
+    } else if (matchedPattern.type === "markdownLinks") {
+      const isEmbed = match[matchedPattern.startIndex + 1] === "!";
+      const target = match[matchedPattern.startIndex + 3];
+      const sourcePath = app.workspace.getActiveFile()?.path ?? "";
+      const file = isEmbed ? null : resolveMarkdownLinkTarget(app, target, sourcePath);
+
+      if (file) {
+        const activeNote = app.workspace.getActiveFile();
+        segments.push({
+          type: "note-pill",
+          content: file.basename,
+          file: file,
+          isActive: activeNote?.path === file.path,
         });
       } else {
         segments.push({
@@ -422,7 +463,7 @@ export function parseTextForPills(
   return segments;
 }
 
-export function createNodesFromSegments(segments: ParsedContent[]): LexicalNode[] {
+export function createNodesFromSegments(segments: ParsedContent[], app?: App): LexicalNode[] {
   const nodes: LexicalNode[] = [];
 
   for (const segment of segments) {
@@ -431,7 +472,8 @@ export function createNodesFromSegments(segments: ParsedContent[]): LexicalNode[
     } else if (segment.type === "active-note-pill") {
       nodes.push($createActiveNotePillNode());
     } else if (segment.type === "note-pill" && segment.file) {
-      nodes.push($createNotePillNode(segment.content, segment.file.path));
+      const linkText = app ? vaultNoteLink(app, segment.file) : "";
+      nodes.push($createNotePillNode(segment.content, segment.file.path, linkText));
     } else if (segment.type === "url-pill" && segment.url) {
       nodes.push($createURLPillNode(segment.url));
     } else if (segment.type === "tool-pill" && segment.toolName) {
@@ -464,7 +506,7 @@ export function $insertTextWithPills(
     includeURLs: enableURLPills,
   });
 
-  const nodes = createNodesFromSegments(segments);
+  const nodes = createNodesFromSegments(segments, app);
 
   if (nodes.length > 0) {
     selection.insertNodes(nodes);

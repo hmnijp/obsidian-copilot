@@ -13,13 +13,15 @@ const VARIABLE_REGEX = /\{([^}]+)\}/g;
 export function translateCommandToAgentText(
   body: string,
   selectedText: string,
-  activeNote: TFile | null
+  activeNote: TFile | null,
+  linkForNote?: (file: TFile) => string
 ): string {
-  const selectionReplacement = selectedText || (activeNote ? fileToWikilink(activeNote) : "");
+  const selectionReplacement =
+    selectedText || (activeNote ? (linkForNote?.(activeNote) ?? fileToWikilink(activeNote)) : "");
   let text = body.split("{copilot-selection}").join(selectionReplacement);
   text = text.split("{}").join(selectionReplacement);
 
-  text = resolveActiveNoteToken(text, activeNote);
+  text = resolveActiveNoteToken(text, activeNote, linkForNote);
 
   return text.replace(VARIABLE_REGEX, (token, rawName: string) => {
     if (token === ACTIVE_WEB_TAB_MARKER) return token;

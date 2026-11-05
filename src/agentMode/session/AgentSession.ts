@@ -57,6 +57,7 @@ import {
 } from "@/agentMode/session/turnFileChanges";
 import { TurnTracker, type TurnOutcome, type TurnSend } from "@/agentMode/session/TurnTracker";
 import { getVaultBase } from "@/utils/vaultPath";
+import { vaultLinkStyle } from "@/utils/noteLink";
 import { deriveChatTitleFromMessages } from "@/agentMode/session/chatHistoryMerge";
 import { isCompactCommand } from "@/commands/compactCommand";
 import type { FanoutRunInput } from "@/agentMode/session/fanout/FanoutOrchestrator";
@@ -987,6 +988,7 @@ export class AgentSession {
     return {
       vaultRoot,
       cwd: this.cwd,
+      linkStyle: vaultLinkStyle(app),
       absolutePath: (vaultPath) => adapter.getFullPath(vaultPath),
     };
   }

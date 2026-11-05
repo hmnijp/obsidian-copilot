@@ -41,6 +41,7 @@ import { getModelKeyFromModel } from "@/settings/model";
 import { modelSupportsVision } from "@/utils";
 import { arrayBufferToBase64, base64ToArrayBuffer } from "@/utils/base64";
 import { mergeWebTabContexts } from "@/utils/urlNormalization";
+import { vaultNoteLink } from "@/utils/noteLink";
 import { App, Notice, TFile } from "obsidian";
 import React, { memo, useCallback, useContext, useEffect, useMemo, useRef } from "react";
 import { v4 as uuidv4 } from "uuid";
@@ -335,16 +336,18 @@ export const AgentChatInput = memo(function AgentChatInput({
       const notes = dedupeBy(candidateNotes, (n) => n.path);
 
       const noteSelection = selectedTextContexts.find(isNoteSelectedTextContext);
+      const linkForNote = (file: TFile) => vaultNoteLink(app, file);
       const expanded = await expandCustomCommandPrefix(
         text,
         getCachedCustomCommands(),
         noteSelection?.content ?? "",
-        activeFile
+        activeFile,
+        linkForNote
       );
       if (expanded.matched) {
         void CustomCommandManager.getInstance().recordUsage(expanded.matched);
       }
-      const resolvedText = resolveActiveNoteToken(expanded.text, activeFile);
+      const resolvedText = resolveActiveNoteToken(expanded.text, activeFile, linkForNote);
 
       const shouldIncludeActiveWebTab =
         includeActiveWebTab || resolvedText.includes(ACTIVE_WEB_TAB_MARKER);

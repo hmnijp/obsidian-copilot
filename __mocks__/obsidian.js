@@ -165,5 +165,6 @@ window.app = {
   },
   fileManager: {
     trashFile: jest.fn().mockResolvedValue(undefined),
+    generateMarkdownLink: jest.fn((file, sourcePath = "") => `[[${file.basename ?? file.path}]]`),
   },
 };

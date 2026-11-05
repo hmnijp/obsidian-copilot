@@ -64,5 +64,13 @@ describe("resolveActiveNoteToken", () => {
         "Open [[Mindmap.canvas]]"
       );
     });
+
+    it("uses the link form the caller supplies, so Markdown-link vaults get Markdown links", () => {
+      const linkForNote = jest.fn(() => "[Today](Daily/Today.md)");
+      const out = resolveActiveNoteToken("Summarize {activeNote}", mockFile("Today"), linkForNote);
+
+      expect(out).toBe("Summarize [Today](Daily/Today.md)");
+      expect(linkForNote).toHaveBeenCalledWith(mockFile("Today"));
+    });
   });
 });

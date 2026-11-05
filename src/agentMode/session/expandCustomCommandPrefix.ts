@@ -13,7 +13,8 @@ export async function expandCustomCommandPrefix(
   input: string,
   commands: readonly CustomCommand[],
   selectedText: string,
-  activeNote: TFile | null
+  activeNote: TFile | null,
+  linkForNote?: (file: TFile) => string
 ): Promise<ExpandCustomCommandResult> {
   const resolved = resolveCustomCommandPrefix(input, commands);
   if (!resolved.matched) return resolved;
@@ -23,6 +24,6 @@ export async function expandCustomCommandPrefix(
     return { text: input };
   }
 
-  const text = translateCommandToAgentText(resolved.text, selectedText, activeNote);
+  const text = translateCommandToAgentText(resolved.text, selectedText, activeNote, linkForNote);
   return { text, matched: resolved.matched };
 }

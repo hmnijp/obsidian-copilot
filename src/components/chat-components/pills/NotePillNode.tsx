@@ -15,24 +15,27 @@ import { PillBadge } from "./PillBadge";
 export interface SerializedNotePillNode extends SerializedBasePillNode {
   noteTitle: string;
   notePath: string;
+  linkText?: string;
 }
 
 export class NotePillNode extends BasePillNode {
   __noteTitle: string;
   __notePath: string;
+  __linkText: string;
 
   static getType(): string {
     return "note-pill";
   }
 
   static clone(node: NotePillNode): NotePillNode {
-    return new NotePillNode(node.__noteTitle, node.__notePath, node.__key);
+    return new NotePillNode(node.__noteTitle, node.__notePath, node.__linkText, node.__key);
   }
 
-  constructor(noteTitle: string, notePath: string, key?: NodeKey) {
+  constructor(noteTitle: string, notePath: string, linkText = "", key?: NodeKey) {
     super(noteTitle, key);
     this.__noteTitle = noteTitle;
     this.__notePath = notePath;
+    this.__linkText = linkText;
   }
 
   getClassName(): string {
@@ -58,8 +61,8 @@ export class NotePillNode extends BasePillNode {
   }
 
   static importJSON(serializedNode: SerializedNotePillNode): NotePillNode {
-    const { noteTitle, notePath } = serializedNode;
-    return $createNotePillNode(noteTitle, notePath);
+    const { noteTitle, notePath, linkText } = serializedNode;
+    return $createNotePillNode(noteTitle, notePath, linkText ?? "");
   }
 
   exportJSON(): SerializedNotePillNode {
@@ -67,30 +70,27 @@ export class NotePillNode extends BasePillNode {
       ...super.exportJSON(),
       noteTitle: this.__noteTitle,
       notePath: this.__notePath,
+      linkText: this.__linkText,
       type: "note-pill",
       version: 1,
     };
   }
 
   exportDOM(editor: LexicalEditor): DOMExportOutput {
-    const lowerPath = this.__notePath.toLowerCase();
-    const displayName = lowerPath.endsWith(".pdf")
-      ? `${this.__noteTitle}.pdf`
-      : lowerPath.endsWith(".canvas")
-        ? `${this.__noteTitle}.canvas`
-        : this.__noteTitle;
     const element = getEditorDocument(editor).win.createSpan({
-      text: `[[${displayName}]]`,
+      text: this.getTextContent(),
       attr: {
         "data-lexical-note-pill": "true",
         "data-note-title": this.__noteTitle,
         "data-note-path": this.__notePath,
+        "data-note-link-text": this.__linkText,
       },
     });
     return { element };
   }
 
   getTextContent(): string {
+    if (this.__linkText) return this.__linkText;
     const lowerPath = this.__notePath.toLowerCase();
     const displayName = lowerPath.endsWith(".pdf")
       ? `${this.__noteTitle}.pdf`
@@ -117,7 +117,8 @@ function convertNotePillElement(domNode: HTMLElement): DOMConversionOutput | nul
   const noteTitle = domNode.getAttribute("data-note-title");
   const notePath = domNode.getAttribute("data-note-path");
   if (noteTitle && notePath) {
-    const node = $createNotePillNode(noteTitle, notePath);
+    const linkText = domNode.getAttribute("data-note-link-text") ?? "";
+    const node = $createNotePillNode(noteTitle, notePath, linkText);
     return { node };
   }
   return null;
@@ -152,8 +153,12 @@ function NotePillComponent({ node }: NotePillComponentProps): JSX.Element {
   );
 }
 
-export function $createNotePillNode(noteTitle: string, notePath: string): NotePillNode {
-  return new NotePillNode(noteTitle, notePath);
+export function $createNotePillNode(
+  noteTitle: string,
+  notePath: string,
+  linkText = ""
+): NotePillNode {
+  return new NotePillNode(noteTitle, notePath, linkText);
 }
 
 export function $isNotePillNode(node: LexicalNode | null | undefined): node is NotePillNode {
