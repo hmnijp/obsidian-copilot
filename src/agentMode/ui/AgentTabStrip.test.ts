@@ -239,31 +239,29 @@ describe("AgentTabStrip", () => {
       expect(onOpenSidebar).toHaveBeenCalledTimes(1);
     });
 
-    it("hides every tab while a sessions sidebar leaf exists and shows the same tabs once the last leaf closes for https://github.com/Brevilabs/obsidian-copilot-private/issues/801", () => {
+    it("keeps every tab and the Navigator icon while a sessions sidebar leaf exists", () => {
       const workspace = makeFakeWorkspaceApp();
       renderStrip(makeManagerWithOneChat(), { workspace });
       expect(screen.getByRole("tab", { name: /Existing chat/ })).toBeTruthy();
 
       act(() => workspace.setLeaves({ [SESSIONS_SIDEBAR_VIEWTYPE]: 1 }));
-      expect(screen.queryByRole("tab")).toBeNull();
-      expect(screen.queryByRole("button", { name: "Open Copilot Navigator" })).toBeNull();
+      expect(screen.getByRole("tab", { name: /Existing chat/ })).toBeTruthy();
+      expect(screen.getByRole("button", { name: "Open Copilot Navigator" })).toBeTruthy();
 
       act(() => workspace.setLeaves({ [SESSIONS_SIDEBAR_VIEWTYPE]: 2 }));
-      act(() => workspace.setLeaves({ [SESSIONS_SIDEBAR_VIEWTYPE]: 1 }));
-      expect(screen.queryByRole("tab")).toBeNull();
-
       act(() => workspace.setLeaves({}));
+
       expect(screen.getByRole("tab", { name: /Existing chat/ })).toBeTruthy();
       expect(screen.getByRole("button", { name: "Open Copilot Navigator" })).toBeTruthy();
     });
 
-    it("starts hidden when a sessions sidebar leaf already exists for https://github.com/Brevilabs/obsidian-copilot-private/issues/801", () => {
+    it("keeps the tabs when a sessions sidebar leaf already exists", () => {
       const workspace: FakeWorkspaceApp = makeFakeWorkspaceApp();
       workspace.setLeaves({ [SESSIONS_SIDEBAR_VIEWTYPE]: 1 });
 
       renderStrip(makeManagerWithOneChat(), { workspace });
 
-      expect(screen.queryByRole("tab")).toBeNull();
+      expect(screen.getByRole("tab", { name: /Existing chat/ })).toBeTruthy();
     });
   });
 });

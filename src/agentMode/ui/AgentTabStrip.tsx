@@ -8,8 +8,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
-import { useApp } from "@/context";
-import { useSessionsSidebarOpen } from "@/agentMode/navigator/hooks/useSessionsSidebarOpen";
+// import { useApp } from "@/context";
+// import { useSessionsSidebarOpen } from "@/agentMode/navigator/hooks/useSessionsSidebarOpen";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { refreshLatestVersion } from "@/hooks/useLatestVersion";
 import { cn } from "@/lib/utils";
@@ -102,7 +102,8 @@ function useSessionDisplay(session: AgentSession) {
 }
 
 export const AgentTabStrip: React.FC<Props> = ({ manager, onOpenSidebar }) => {
-  const isHidden = useSessionsSidebarOpen(useApp());
+  // const isHidden = useSessionsSidebarOpen(useApp());
+  const isHidden = false;
   const [, setTick] = React.useState(0);
   React.useEffect(() => manager.subscribe(() => setTick((v) => v + 1)), [manager]);
 
