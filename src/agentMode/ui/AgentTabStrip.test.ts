@@ -50,7 +50,7 @@ function makeManagerWithOneChat() {
   };
   return {
     subscribe: () => () => {},
-    getSessionsForScope: () => [session],
+    getSessionsForAllScopes: () => [session],
     getActiveProjectId: () => null,
     getActiveSession: () => session,
     getIsStarting: () => false,
@@ -144,6 +144,27 @@ describe("AgentTabStrip", () => {
   describe("AgentTabStrip()", () => {
     beforeEach(() => setNavigatorAccess("supporter"));
 
+    it("shows a chat that belongs to another scope, not only the active one", () => {
+      const projectSession = {
+        internalId: "project",
+        backendId: "test",
+        subscribe: () => () => {},
+        getLabel: () => "Project chat",
+        getStatus: () => "idle",
+        getNeedsAttention: () => false,
+      };
+      const manager = {
+        subscribe: () => () => {},
+        getSessionsForAllScopes: () => [projectSession],
+        getActiveProjectId: () => "project-1",
+        getActiveSession: () => projectSession,
+        getIsStarting: () => false,
+      };
+      renderStrip(manager);
+
+      expect(screen.getByRole("tab", { name: /Project chat/ })).toBeTruthy();
+    });
+
     it("detaches a closed tab without closing its backend session for https://github.com/Brevilabs/obsidian-copilot-private/issues/429", () => {
       const session = {
         internalId: "existing",
@@ -155,7 +176,7 @@ describe("AgentTabStrip", () => {
       };
       const manager = {
         subscribe: () => () => {},
-        getSessionsForScope: () => [session],
+        getSessionsForAllScopes: () => [session],
         getActiveProjectId: () => null,
         getActiveSession: () => session,
         getIsStarting: () => false,
@@ -181,7 +202,7 @@ describe("AgentTabStrip", () => {
       };
       const manager = {
         subscribe: () => () => {},
-        getSessionsForScope: () => [session],
+        getSessionsForAllScopes: () => [session],
         getActiveProjectId: () => null,
         getActiveSession: () => session,
         getIsStarting: () => false,
@@ -209,7 +230,7 @@ describe("AgentTabStrip", () => {
       let finishCreation!: () => void;
       const manager = {
         subscribe: () => () => {},
-        getSessionsForScope: () => [session],
+        getSessionsForAllScopes: () => [session],
         getActiveProjectId: () => null,
         getActiveSession: () => session,
         getIsStarting: () => false,

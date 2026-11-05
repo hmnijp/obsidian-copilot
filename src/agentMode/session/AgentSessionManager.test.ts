@@ -6179,6 +6179,28 @@ describe("AgentSessionManager", () => {
       });
     });
 
+    describe("getSessionsForAllScopes()", () => {
+      it("lists the active scope's chats first and every other open chat after them", async () => {
+        seedProjects("proj-a", "proj-b");
+        const mgr = buildManager();
+        const global = await createWorkedSession(mgr);
+        const inA = await createWorkedSession(mgr, undefined, "proj-a");
+        const inB = await createWorkedSession(mgr, undefined, "proj-b");
+        await mgr.enterProject("proj-a");
+
+        expect(mgr.getSessionsForAllScopes()).toEqual([inA, global, inB]);
+      });
+
+      it("leaves out a chat whose tab was closed", async () => {
+        const mgr = buildManager();
+        const kept = await createWorkedSession(mgr);
+        const closed = await createWorkedSession(mgr);
+        mgr.detachSessionFromTab(closed.internalId);
+
+        expect(mgr.getSessionsForAllScopes()).toEqual([kept]);
+      });
+    });
+
     describe("enterProject()", () => {
       const PROJECT_ID = "proj-enter";
 

@@ -696,9 +696,6 @@ const AgentHomeInternal: React.FC<AgentHomeProps> = ({
             projectName={headerName}
             onExit={handleExitProject}
             orphaned={headerOrphaned}
-            // The open sessions sidebar is the navigation, so the header offers no way back out of a project.
-            // https://github.com/Brevilabs/obsidian-copilot-private/issues/804
-            canLeaveProject={!sidebarOpen}
             menu={
               activeProject ? (
                 <ProjectInfoPopover

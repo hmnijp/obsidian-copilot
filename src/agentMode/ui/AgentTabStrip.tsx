@@ -107,7 +107,7 @@ export const AgentTabStrip: React.FC<Props> = ({ manager, onOpenSidebar }) => {
   const [, setTick] = React.useState(0);
   React.useEffect(() => manager.subscribe(() => setTick((v) => v + 1)), [manager]);
 
-  const sessions = manager.getSessionsForScope(manager.getActiveProjectId());
+  const sessions = manager.getSessionsForAllScopes();
   const sessionCount = sessions.length;
   const activeId = manager.getActiveSession()?.internalId ?? null;
   const isCreating = manager.getIsStarting();
