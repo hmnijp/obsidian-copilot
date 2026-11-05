@@ -1,4 +1,5 @@
 import type { AgentChatMessage } from "@/agentMode/session/types";
+import { agentPathFormatter, type AgentPathContext } from "@/agentMode/session/promptEnvelope";
 import {
   parseFanoutComposite,
   renderFanoutComposite,
@@ -31,8 +32,12 @@ function countImageAttachments(content: readonly unknown[] | undefined): number 
   return count;
 }
 
-function renderMessageContext(context: MessageContext | undefined): string[] {
+function renderMessageContext(
+  context: MessageContext | undefined,
+  pathContext: AgentPathContext | undefined
+): string[] {
   if (!context) return [];
+  const agentPath = agentPathFormatter(pathContext);
   const lines: string[] = [];
 
   for (const sel of context.selectedTextContexts ?? []) {
@@ -49,7 +54,7 @@ function renderMessageContext(context: MessageContext | undefined): string[] {
     lines.push(`[selected from ${label}]\n${excerpt}`);
   }
 
-  const noteNames = (context.notes ?? []).map((n) => n.path);
+  const noteNames = (context.notes ?? []).map((n) => agentPath(n.path));
   if (noteNames.length > 0) lines.push(`[notes: ${noteNames.join(", ")}]`);
 
   if (context.folders && context.folders.length > 0) {
@@ -75,7 +80,10 @@ function historyProse(message: AgentChatMessage): string {
   return turn ? renderFanoutComposite(turn, (id) => id) : message.message;
 }
 
-function renderTurnContent(message: AgentChatMessage): string | null {
+function renderTurnContent(
+  message: AgentChatMessage,
+  pathContext: AgentPathContext | undefined
+): string | null {
   const segments: string[] = [];
   const prose = historyProse(message).trim();
   if (prose.length > 0) segments.push(prose);
@@ -84,18 +92,19 @@ function renderTurnContent(message: AgentChatMessage): string | null {
     const noun = imageCount === 1 ? "image attachment" : "image attachments";
     segments.push(`[${imageCount} ${noun} omitted from history; existed in this turn]`);
   }
-  segments.push(...renderMessageContext(message.context));
+  segments.push(...renderMessageContext(message.context, pathContext));
   if (segments.length === 0) return null;
   return segments.join("\n");
 }
 
 export function buildConversationHistoryBlock(
   messages: readonly AgentChatMessage[],
-  maxChars: number
+  maxChars: number,
+  pathContext?: AgentPathContext
 ): string | null {
   const rendered: string[] = [];
   for (const m of messages) {
-    const content = renderTurnContent(m);
+    const content = renderTurnContent(m, pathContext);
     if (content === null) continue;
     const role = m.sender === USER_SENDER ? "user" : "assistant";
     rendered.push(`<turn role="${role}">\n${escapeXml(content)}\n</turn>`);

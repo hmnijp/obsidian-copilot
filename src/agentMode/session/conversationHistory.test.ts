@@ -5,6 +5,7 @@ import {
 import type { AgentChatMessage } from "@/agentMode/session/types";
 import { AI_SENDER, USER_SENDER } from "@/constants";
 import type { MessageContext } from "@/types/message";
+import { mockTFile } from "@/__tests__/mockObsidian";
 
 const histMsg = (sender: string, message: string): AgentChatMessage => ({
   id: `${sender}-${message.slice(0, 8)}`,
@@ -72,6 +73,32 @@ describe("conversationHistory", () => {
       expect(block).toContain("[context]");
       expect(block).toContain("[selected from DesignDoc]");
       expect(block).toContain("the fan-out renderer drops context");
+    });
+
+    it("lists attached notes by absolute path when the project workspace is outside the vault", () => {
+      const note = mockTFile({ path: "Notes/Test.md" });
+      const msg = withContext(USER_SENDER, "summarize", { notes: [note], urls: [] });
+
+      const block = buildConversationHistoryBlock([msg], CONVERSATION_HISTORY_MAX_CHARS, {
+        vaultRoot: "/Users/me/Vault",
+        cwd: "/Users/me/code/app",
+        absolutePath: (vaultPath) => `/Users/me/Vault/${vaultPath}`,
+      })!;
+
+      expect(block).toContain("[notes: /Users/me/Vault/Notes/Test.md]");
+    });
+
+    it("keeps attached notes as vault paths when the chat runs in the vault root", () => {
+      const note = mockTFile({ path: "Notes/Test.md" });
+      const msg = withContext(USER_SENDER, "summarize", { notes: [note], urls: [] });
+
+      const block = buildConversationHistoryBlock([msg], CONVERSATION_HISTORY_MAX_CHARS, {
+        vaultRoot: "/Users/me/Vault",
+        cwd: "/Users/me/Vault",
+        absolutePath: (vaultPath) => `/Users/me/Vault/${vaultPath}`,
+      })!;
+
+      expect(block).toContain("[notes: Notes/Test.md]");
     });
   });
 });
