@@ -1433,6 +1433,30 @@ describe("AgentSession", () => {
         );
       });
 
+      it("sends a project workspace outside the vault absolute note paths and both roots", async () => {
+        const mock = makeMockBackend();
+        const sent = recordPrompts(mock);
+        const adapter = new FileSystemAdapter();
+        adapter.getBasePath = () => "/Users/me/Vault";
+        adapter.getFullPath = (path: string) => `/Users/me/Vault/${path}`;
+        const app = { vault: { adapter } } as unknown as App;
+        const session = makeSession(mock, {
+          cwd: "/Users/me/code/app",
+          getApp: () => app,
+        });
+
+        session.sendPrompt("summarize", {
+          notes: [mockTFile({ path: "Без названия 1.md" })],
+          urls: [],
+        });
+        await waitFor(() => expect(sent).toHaveLength(1));
+
+        const text = promptText(sent[0]);
+        expect(text).toContain("- /Users/me/Vault/Без названия 1.md");
+        expect(text).toContain("The vault root is `/Users/me/Vault`");
+        expect(text).toContain("your working directory is `/Users/me/code/app`");
+      });
+
       it("https://github.com/Brevilabs/obsidian-copilot-private/issues/625 refuses a turn whose model switches to one the user has not enabled while its web tabs load", async () => {
         const mock = makeMockBackend();
         const agent = fakeCatalogAgent(mock, catalogState([PLUS_FLASH, PARETO], PLUS_FLASH));

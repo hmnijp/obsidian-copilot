@@ -40,7 +40,7 @@ import {
 import { MessageContext } from "@/types/message";
 import { err2String, formatDateTime } from "@/utils";
 import { ensureMultiAgentEntitlement, showMultiAgentUpgradePrompt } from "@/plusUtils";
-import type { App, DataAdapter } from "obsidian";
+import { FileSystemAdapter, type App, type DataAdapter } from "obsidian";
 import { MethodUnsupportedError } from "@/agentMode/session/errors";
 import {
   diffTargetPaths,
@@ -88,6 +88,7 @@ import {
   OUTPUT_LIMIT_CONTINUATION_PROMPT,
   serializeWebTabContext,
   withReadOnlyPreamble,
+  type AgentPathContext,
 } from "@/agentMode/session/promptEnvelope";
 import {
   findToolCallPart,
@@ -809,7 +810,8 @@ export class AgentSession {
           webTabBlock === this.lastSentWebTabBlock ? "" : webTabBlock,
           null,
           null,
-          null
+          null,
+          this.promptPathContext()
         );
         if (webTabBlock) this.lastSentWebTabBlock = webTabBlock;
         return blocks;
@@ -877,6 +879,7 @@ export class AgentSession {
         ? null
         : (this.getProjectContextUpdatesFn?.() ?? null);
       const projectContextUpdatesBlock = projectContextUpdates?.block ?? null;
+      const pathContext = this.promptPathContext();
 
       if (this.runFanoutTurn && isFanout(this.lastMentionedAgents, this.backendId)) {
         const entitled = await this.ensureMultiAgentEntitlement();
@@ -890,7 +893,8 @@ export class AgentSession {
 
         const historyBlock = buildConversationHistoryBlock(
           this.priorDisplayMessages(userMessageId),
-          CONVERSATION_HISTORY_MAX_CHARS
+          CONVERSATION_HISTORY_MAX_CHARS,
+          pathContext
         );
         const promptBlocks = buildPromptBlocks(
           displayText,
@@ -899,7 +903,8 @@ export class AgentSession {
           webTabBlock,
           projectContextBlock,
           historyBlock,
-          projectContextUpdatesBlock
+          projectContextUpdatesBlock,
+          pathContext
         );
         return { stopReason: await this.runFanoutPath(displayText, promptBlocks, signal) };
       }
@@ -910,7 +915,8 @@ export class AgentSession {
       const historyBlock = sendsSavedHistory
         ? buildConversationHistoryBlock(
             this.priorDisplayMessages(userMessageId),
-            CONVERSATION_HISTORY_MAX_CHARS
+            CONVERSATION_HISTORY_MAX_CHARS,
+            pathContext
           )
         : null;
       const leadingContextBlock = sendsCompact
@@ -928,7 +934,8 @@ export class AgentSession {
         webTabPromptBlock,
         projectContextBlock,
         leadingContextBlock,
-        projectContextUpdatesBlock
+        projectContextUpdatesBlock,
+        pathContext
       );
 
       const outcome = await this.turns.submit(
@@ -969,6 +976,19 @@ export class AgentSession {
 
   private ensureMultiAgentEntitlement(): Promise<boolean> {
     return ensureMultiAgentEntitlement(this.getApp?.());
+  }
+
+  private promptPathContext(): AgentPathContext | undefined {
+    const app = this.getApp?.();
+    const adapter = app?.vault?.adapter;
+    if (!app || !(adapter instanceof FileSystemAdapter) || !this.cwd) return undefined;
+    const vaultRoot = adapter.getBasePath().replace(/[\\/]+$/, "");
+    if (!vaultRoot) return undefined;
+    return {
+      vaultRoot,
+      cwd: this.cwd,
+      absolutePath: (vaultPath) => adapter.getFullPath(vaultPath),
+    };
   }
 
   private async runFanoutPath(

@@ -27,7 +27,7 @@ You can also add context while typing:
 
 Context badges above the composer show what will be sent with the next message. Select the **x** on a badge to remove it. After the message is sent, one-turn attachments are cleared.
 
-A note mention gives the agent the note's vault path so it can read the current file when needed. A folder mention points to a folder to inspect. It does not paste every file in that folder into the prompt.
+A note mention gives the agent the note's path so it can read the current file when needed. When a Project chat's working directory is not the vault root, Copilot gives the agent the note's absolute path so the file resolves from that directory. A folder mention points to a folder to inspect. It does not paste every file in that folder into the prompt.
 
 ### Active note and selected text
 

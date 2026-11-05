@@ -13,6 +13,37 @@ import {
 const OPEN_TAG = "<user-message>";
 const CLOSE_TAG = "</user-message>";
 
+export interface AgentPathContext {
+  vaultRoot: string;
+  cwd: string;
+  absolutePath: (vaultPath: string) => string;
+}
+
+const VAULT_IS_WORKING_DIRECTORY =
+  "The user attached the following vault items as context. The vault is your current working directory; open them if you need their contents.";
+
+function workingDirectoryEnvelopeIntro({ vaultRoot, cwd }: AgentPathContext): string {
+  return `The user attached the following vault items as context. The vault root is \`${vaultRoot}\` and your working directory is \`${cwd}\`. The paths below are absolute. A [[Note]] link names a vault note and resolves against the vault root, not your working directory.`;
+}
+
+function comparisonPath(value: string): string {
+  const slashed = value.replace(/\\/g, "/").replace(/\/+$/, "");
+  return /^[A-Za-z]:/.test(slashed) ? slashed.toLowerCase() : slashed;
+}
+
+function isWorkingDirectoryTheVault(pathContext: AgentPathContext | undefined): boolean {
+  if (!pathContext) return true;
+  return comparisonPath(pathContext.cwd) === comparisonPath(pathContext.vaultRoot);
+}
+
+export function agentPathFormatter(
+  pathContext: AgentPathContext | undefined
+): (vaultPath: string) => string {
+  if (!pathContext || isWorkingDirectoryTheVault(pathContext)) return (vaultPath) => vaultPath;
+  const absolutePath = pathContext.absolutePath;
+  return (vaultPath) => absolutePath(vaultPath);
+}
+
 export function stripUserMessageWrapper(content: string): string {
   const end = content.lastIndexOf(CLOSE_TAG);
   const start = end === -1 ? -1 : content.lastIndexOf(OPEN_TAG, end);
@@ -74,13 +105,14 @@ export function buildPromptBlocks(
   webTabBlock?: string,
   projectContextBlock?: string | null,
   leadingContextBlock?: string | null,
-  projectContextUpdatesBlock?: string | null
+  projectContextUpdatesBlock?: string | null,
+  pathContext?: AgentPathContext
 ): PromptContent[] {
   const sections = [
     projectContextBlock?.trim() || null,
     projectContextUpdatesBlock?.trim() || null,
     leadingContextBlock?.trim() || null,
-    buildContextEnvelope(context),
+    buildContextEnvelope(context, pathContext),
     buildWebSelectionBlocks(context),
     webTabBlock?.trim() || null,
   ].filter((s): s is string => Boolean(s));
@@ -124,15 +156,25 @@ function buildWebSelectionBlocks(context: MessageContext | undefined): string | 
     .join("\n\n");
 }
 
-function buildContextEnvelope(context: MessageContext | undefined): string | null {
+function buildContextEnvelope(
+  context: MessageContext | undefined,
+  pathContext: AgentPathContext | undefined
+): string | null {
   if (!context) return null;
-  const notePaths = (context.notes ?? []).map((n) => n.path).filter(Boolean);
+  const usesVaultPaths = isWorkingDirectoryTheVault(pathContext);
+  const agentPath = agentPathFormatter(pathContext);
+  const notePaths = (context.notes ?? [])
+    .map((n) => n.path)
+    .filter(Boolean)
+    .map(agentPath);
   const excerpts = (context.selectedTextContexts ?? []).filter(isNoteSelectedTextContext);
   if (notePaths.length === 0 && excerpts.length === 0) return null;
 
   const lines: string[] = [
     "<copilot-context>",
-    "The user attached the following vault items as context. The vault is your current working directory; open them if you need their contents.",
+    pathContext && !usesVaultPaths
+      ? workingDirectoryEnvelopeIntro(pathContext)
+      : VAULT_IS_WORKING_DIRECTORY,
   ];
   if (notePaths.length > 0) {
     lines.push("", "Notes:");
@@ -142,7 +184,7 @@ function buildContextEnvelope(context: MessageContext | undefined): string | nul
     lines.push("", "Selected excerpts (already inlined; no need to re-read):");
     for (const e of excerpts) {
       const location = e.startLine > 0 ? ` (lines ${e.startLine}-${e.endLine})` : "";
-      lines.push(`- ${e.notePath}${location}:`);
+      lines.push(`- ${agentPath(e.notePath)}${location}:`);
       for (const l of e.content.split("\n")) lines.push(`  ${l}`);
     }
   }

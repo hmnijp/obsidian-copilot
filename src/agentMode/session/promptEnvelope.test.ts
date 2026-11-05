@@ -101,6 +101,100 @@ describe("promptEnvelope", () => {
       expect(text).toContain("<user-message>\nsummarize them\n</user-message>");
     });
 
+    const PROJECT_PATHS = {
+      vaultRoot: "/Users/me/Vault",
+      cwd: "/Users/me/code/app",
+      absolutePath: (vaultPath: string) => `/Users/me/Vault/${vaultPath}`,
+    };
+
+    it("keeps vault-relative paths and names the vault as the working directory when the chat runs in the vault root", () => {
+      const blocks = buildPromptBlocks(
+        "summarize",
+        { notes: [makeFile("daily/2026-04-28.md")], urls: [] },
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        { ...PROJECT_PATHS, cwd: "/Users/me/Vault/" }
+      );
+      const text = (blocks[0] as { type: "text"; text: string }).text;
+      expect(text).toContain("- daily/2026-04-28.md");
+      expect(text).toContain(
+        "The vault is your current working directory; open them if you need their contents."
+      );
+      expect(text).not.toContain("/Users/me/Vault/daily");
+    });
+
+    it("gives a project chat outside the vault absolute note paths and names both roots", () => {
+      const blocks = buildPromptBlocks(
+        "summarize",
+        { notes: [makeFile("Без названия 1.md")], urls: [] },
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        PROJECT_PATHS
+      );
+      const text = (blocks[0] as { type: "text"; text: string }).text;
+      expect(text).toContain("- /Users/me/Vault/Без названия 1.md");
+      expect(text).toContain("The vault root is `/Users/me/Vault`");
+      expect(text).toContain("your working directory is `/Users/me/code/app`");
+      expect(text).toContain("A [[Note]] link names a vault note");
+      expect(text).toContain("resolves against the vault root, not your working directory");
+      expect(text).not.toContain("The vault is your current working directory");
+    });
+
+    it("gives an excerpt's note path in the same form as an attached note", () => {
+      const blocks = buildPromptBlocks(
+        "explain",
+        {
+          notes: [],
+          urls: [],
+          selectedTextContexts: [
+            {
+              id: "s1",
+              sourceType: "note",
+              notePath: "projects/copilot.md",
+              noteTitle: "copilot",
+              startLine: 12,
+              endLine: 18,
+              content: "line one",
+            },
+          ],
+        },
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        PROJECT_PATHS
+      );
+      const text = (blocks[0] as { type: "text"; text: string }).text;
+      expect(text).toContain("- /Users/me/Vault/projects/copilot.md (lines 12-18):");
+    });
+
+    it("treats a Windows path that differs only by case and separators as the vault working directory", () => {
+      const blocks = buildPromptBlocks(
+        "summarize",
+        { notes: [makeFile("a.md")], urls: [] },
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        {
+          vaultRoot: "C:\\Users\\me\\Vault",
+          cwd: "c:/users/me/vault/",
+          absolutePath: (vaultPath: string) => `C:\\Users\\me\\Vault\\${vaultPath}`,
+        }
+      );
+      const text = (blocks[0] as { type: "text"; text: string }).text;
+      expect(text).toContain("- a.md");
+      expect(text).toContain("The vault is your current working directory");
+    });
+
     it("inlines selected text excerpts with path and line range", () => {
       const blocks = buildPromptBlocks("explain", {
         notes: [],
